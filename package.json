@@ -1,0 +1,28 @@
+{
+  "name": "prosets",
+  "version": "1.0.0",
+  "description": "> Where creators meet buyers. Secure. Fast. Frictionless.",
+  "main": "index.js",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run start:dev --workspace=apps/api",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Keltoummalouki/ProSets.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Keltoummalouki/ProSets/issues"
+  },
+  "homepage": "https://github.com/Keltoummalouki/ProSets#readme"
+}
