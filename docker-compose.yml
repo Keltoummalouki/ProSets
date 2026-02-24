@@ -23,6 +23,10 @@ services:
       NODE_ENV: development
     volumes:
       - ./apps/api/src:/app/src
+      - ./apps/api/prisma:/app/prisma
+      - ./apps/api/nest-cli.json:/app/nest-cli.json
+      - ./apps/api/tsconfig.json:/app/tsconfig.json
+      - ./apps/api/tsconfig.build.json:/app/tsconfig.build.json
       - api_node_modules:/app/node_modules
     depends_on:
       - postgres
@@ -38,9 +42,12 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3001
       NODE_ENV: development
+      WATCHPACK_POLLING: "true"
     volumes:
       - ./apps/web/src:/app/src
       - ./apps/web/public:/app/public
+      - ./apps/web/next.config.ts:/app/next.config.ts
+      - ./apps/web/.env.local:/app/.env.local
       - web_node_modules:/app/node_modules
     depends_on:
       - api

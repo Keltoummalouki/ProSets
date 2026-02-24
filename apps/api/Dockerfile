@@ -8,12 +8,15 @@ RUN npm install --legacy-peer-deps
 FROM deps AS build
 WORKDIR /app
 COPY . .
+RUN DATABASE_URL="postgresql://user:password@postgres:5432/prosets" npx prisma generate
 RUN npm run build
 
 # ---- Development ----
 FROM deps AS dev
 WORKDIR /app
 COPY . .
+RUN DATABASE_URL="postgresql://user:password@postgres:5432/prosets" npx prisma generate
+ENV DATABASE_URL="postgresql://user:password@postgres:5432/prosets"
 CMD ["npm", "run", "start:dev"]
 
 # ---- Production ----

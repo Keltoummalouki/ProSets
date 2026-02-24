@@ -1,0 +1,87 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+enum AssetStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_REVIEW
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model User {
+  id            String   @id @default(cuid())
+  auth0Id       String   @unique
+  email         String   @unique
+  name          String?
+  role          UserRole @default(BUYER)
+  avatarUrl     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sellerAssets  Asset[]  @relation("SellerAssets")
+  orders        Order[]
+}
+
+model Category {
+  id     String  @id @default(cuid())
+  name   String  @unique
+  slug   String  @unique
+  assets Asset[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Asset {
+  id            String      @id @default(cuid())
+  name          String
+  description   String
+  price         Float
+  status        AssetStatus @default(ACTIVE)
+  fileKey       String      // S3 key for private source file
+  previewUrls   String[]    // S3 keys for public preview images/videos
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  sellerId      String
+  seller        User        @relation("SellerAssets", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  categoryId    String
+  category      Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  orders        Order[]
+}
+
+model Order {
+  id                String      @id @default(cuid())
+  status            OrderStatus @default(PENDING)
+  stripeSessionId   String?     @unique
+  total             Float
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  userId            String
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  assetId           String
+  asset             Asset       @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
