@@ -31,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="w-full h-full">
       <head>
         <link
           rel="stylesheet"
@@ -39,7 +39,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${bebasNeue.variable} ${dmMono.variable} ${fraunces.variable}`}
+        className={`${bebasNeue.variable} ${dmMono.variable} ${fraunces.variable} w-full h-full m-0 p-0`}
       >
         {children}
       </body>

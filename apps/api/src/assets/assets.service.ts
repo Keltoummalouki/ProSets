@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AssetsPresignerService } from './assets-presigner.service';
 
 @Injectable()
 export class AssetsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private presigner: AssetsPresignerService,
+  ) {}
 
   async findAll(filters: {
     category?: string;
@@ -39,8 +43,18 @@ export class AssetsService {
       this.prisma.asset.count({ where }),
     ]);
 
+    // Convert S3 URLs to presigned URLs for preview images
+    const assetsWithPresignedUrls = await Promise.all(
+      assets.map(async (asset) => ({
+        ...asset,
+        previewUrls: asset.previewUrls.length > 0
+          ? await this.presigner.getPresignedUrls(asset.previewUrls, 3600)
+          : [],
+      })),
+    );
+
     return {
-      assets,
+      assets: assetsWithPresignedUrls,
       pagination: {
         page,
         limit,
@@ -60,7 +74,13 @@ export class AssetsService {
       throw new NotFoundException('Asset not found');
     }
 
-    return asset;
+    // Convert S3 URLs to presigned URLs
+    return {
+      ...asset,
+      previewUrls: asset.previewUrls.length > 0
+        ? await this.presigner.getPresignedUrls(asset.previewUrls, 3600)
+        : [],
+    };
   }
 
   async create(data: any) {

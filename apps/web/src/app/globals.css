@@ -2,6 +2,14 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 :root {
   --black: #0a0a0a;
   --white: #f0ece3;
@@ -13,38 +21,32 @@
   --border: rgba(240,236,227,0.12);
 }
 
-html { scroll-behavior: smooth; }
+html { 
+  scroll-behavior: smooth;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
 
 body {
   background: var(--black);
   color: var(--white);
   font-family: var(--font-dm-mono), 'DM Mono', monospace;
-  overflow-x: hidden;
-  cursor: none;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
-/* CURSOR */
-.cursor {
-  width: 12px; height: 12px;
-  background: var(--red);
-  border-radius: 50%;
-  position: fixed;
-  top: 0; left: 0;
-  pointer-events: none;
-  z-index: 9999;
-  transition: transform 0.15s ease;
-  mix-blend-mode: difference;
+/* Hide scrollbars but allow scrolling */
+::-webkit-scrollbar {
+  display: none;
 }
-.cursor-ring {
-  width: 36px; height: 36px;
-  border: 1px solid var(--white);
-  border-radius: 50%;
-  position: fixed;
-  top: 0; left: 0;
-  pointer-events: none;
-  z-index: 9998;
-  transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  opacity: 0.5;
+
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* NOISE OVERLAY */
@@ -229,7 +231,6 @@ nav {
   font-size: 11px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  cursor: none;
   transition: all 0.2s;
   text-decoration: none;
   display: inline-flex;
@@ -247,7 +248,6 @@ nav {
   font-size: 11px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  cursor: none;
   transition: all 0.2s;
   text-decoration: none;
 }
@@ -464,7 +464,6 @@ nav {
   overflow: hidden;
   text-decoration: none;
   transition: background 0.3s;
-  cursor: none;
 }
 .cat-item:hover { background: var(--mid); }
 .cat-item:hover .cat-arrow { transform: translate(4px, -4px); }
@@ -523,7 +522,6 @@ nav {
   background: var(--dark);
   overflow: hidden;
   transition: background 0.3s;
-  cursor: none;
   text-decoration: none;
   display: block;
 }
@@ -720,7 +718,6 @@ nav {
   align-items: center;
   gap: 10px;
   transition: background 0.2s;
-  cursor: none;
 }
 .btn-dark:hover { background: var(--red); }
 

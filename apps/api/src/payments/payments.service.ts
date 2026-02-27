@@ -20,6 +20,9 @@ export class PaymentsService {
   async createCheckoutSession(data: { assetId: string; userId: string }) {
     const { assetId, userId } = data;
 
+    // For now, use test buyer if no valid user provided
+    const finalUserId = userId && userId !== 'user-1' ? userId : 'buyer_123';
+
     const asset = await this.prisma.asset.findUnique({
       where: { id: assetId },
     });
@@ -44,24 +47,24 @@ export class PaymentsService {
         },
       ],
       mode: 'payment',
-      success_url: `${process.env.APP_BASE_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.APP_BASE_URL}/checkout/cancel`,
+      success_url: `${process.env.FRONTEND_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/checkout/cancel`,
       metadata: {
         assetId,
         userId,
       },
     });
 
-    // TODO: Create order with pending status - fix Prisma type issue first
-    // await this.prisma.order.create({
-    //   data: {
-    //     userId,
-    //     assetId,
-    //     total: asset.price,
-    //     status: 'PENDING',
-    //     stripeSessionId: session.id,
-    //   },
-    // });
+    // Create order with pending status
+    await this.prisma.order.create({
+      data: {
+        userId: finalUserId,
+        assetId,
+        total: asset.price,
+        status: 'PENDING',
+        stripeSessionId: session.id,
+      },
+    });
 
     return { sessionId: session.id, url: session.url };
   }
@@ -90,11 +93,11 @@ export class PaymentsService {
       const session = event.data.object as Stripe.Checkout.Session;
 
       if (session.id) {
-        // TODO: Update order status to PAID - fix Prisma type issue first
-        // await this.prisma.order.update({
-        //   where: { stripeSessionId: session.id },
-        //   data: { status: 'PAID' },
-        // });
+        // Update order status to PAID
+        await this.prisma.order.update({
+          where: { stripeSessionId: session.id },
+          data: { status: 'PAID' },
+        });
       }
     }
 

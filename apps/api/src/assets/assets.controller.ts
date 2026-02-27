@@ -8,6 +8,7 @@ import {
   Body,
   Query,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { AssetsService } from './assets.service';
 import { AuthGuard } from '../auth/auth.guard';
@@ -37,9 +38,38 @@ export class AssetsController {
   }
 
   @Post()
-  @UseGuards(AuthGuard)
   async create(@Body() data: any) {
-    return this.assetsService.create(data);
+    console.log('Received asset data:', data);
+
+    if (!data.name) {
+      throw new BadRequestException('Asset name is required');
+    }
+
+    // Map category name to ID
+    const categoryMap: Record<string, string> = {
+      '3D Models': 'cat_3d_models',
+      'Code Snippets': 'cat_code_snippets',
+      'Notion Templates': 'cat_notion_templates',
+      'UI Kits': 'cat_ui_kits',
+    };
+
+    const categoryId = categoryMap[data.categoryId] || data.categoryId;
+
+    // TODO: In production, upload base64 files to S3
+    // For now, just store the file names
+    const fileKey = data.fileKey || `assets/${Date.now()}/${data.name}`;
+    const previewUrls = data.previewUrls || [];
+
+    return this.assetsService.create({
+      name: data.name,
+      description: data.description || '',
+      price: parseFloat(data.price) || 0,
+      categoryId,
+      sellerId: data.sellerId || 'seller_123',
+      status: data.status || 'ACTIVE',
+      fileKey,
+      previewUrls,
+    });
   }
 
   @Patch(':id')
