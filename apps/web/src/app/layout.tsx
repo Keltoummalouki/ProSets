@@ -1,26 +1,21 @@
 import type { Metadata } from "next";
-import { Bebas_Neue, DM_Mono, Fraunces } from "next/font/google";
+import { Syne, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const bebasNeue = Bebas_Neue({
-  weight: "400",
-  variable: "--font-bebas",
+const syne = Syne({
+  variable: "--font-syne",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
-const dmMono = DM_Mono({
-  weight: ["300", "400", "500"],
-  variable: "--font-dm-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains",
   subsets: ["latin"],
-});
-
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
-  title: "Prosets — Digital Asset Marketplace",
+  title: "Prosets — Premium Digital Asset Marketplace",
   description:
     "Premium digital assets — 3D models, code snippets, Notion templates — bought, sold, and delivered securely.",
 };
@@ -31,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="w-full h-full">
+    <html lang="en" className="w-full h-full dark">
       <head>
         <link
           rel="stylesheet"
@@ -39,7 +34,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${bebasNeue.variable} ${dmMono.variable} ${fraunces.variable} w-full h-full m-0 p-0`}
+        className={`${syne.variable} ${jetbrainsMono.variable} w-full h-full m-0 p-0 antialiased`}
       >
         {children}
       </body>

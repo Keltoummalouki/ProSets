@@ -1,7 +1,9 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
+  Param,
   Req,
 } from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
@@ -15,6 +17,11 @@ export class PaymentsController {
   @Post('checkout')
   async createCheckout(@Body() data: { assetId: string; userId: string }) {
     return this.paymentsService.createCheckoutSession(data);
+  }
+
+  @Get('session/:sessionId')
+  async getSessionDetails(@Param('sessionId') sessionId: string) {
+    return this.paymentsService.getSessionDetails(sessionId);
   }
 
   @Post('webhook')

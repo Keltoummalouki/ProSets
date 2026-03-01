@@ -24,13 +24,24 @@ export class AssetsPresignerService {
   }
 
   async getPresignedUrl(s3Key: string, expiresIn: number = 3600): Promise<string> {
-    // In development without AWS credentials, return a placeholder image URL
-    if (!this.s3Client) {
-      this.logger.debug(`Returning placeholder URL for ${s3Key}`);
-      return `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23374151" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" font-size="20" fill="%239CA3AF" text-anchor="middle" dominant-baseline="middle"%3EPreview Image%3C/text%3E%3C/svg%3E`;
-    }
-
     try {
+      // In development without AWS credentials, return the public S3 URL
+      if (!this.s3Client) {
+        this.logger.debug(`Returning public S3 URL for ${s3Key}`);
+        
+        // Extract bucket and key from S3 URI
+        if (s3Key.startsWith('s3://')) {
+          const parts = s3Key.split('/');
+          const bucket = parts[2];
+          const key = parts.slice(3).join('/');
+          // Return public S3 URL (works for public buckets)
+          return `https://${bucket}.s3.us-east-1.amazonaws.com/${key}`;
+        }
+        
+        // Fallback to placeholder
+        return this.getPlaceholderUrl();
+      }
+
       // Handle both full S3 URIs and just keys
       const key = s3Key.startsWith('s3://') ? s3Key.split('/').slice(3).join('/') : s3Key;
       const bucket = process.env.AWS_S3_BUCKET || 'prosets-public';
@@ -43,10 +54,14 @@ export class AssetsPresignerService {
       const url = await getSignedUrl(this.s3Client, command, { expiresIn });
       return url;
     } catch (error) {
-      this.logger.error('Error generating presigned URL:', error);
+      this.logger.error('Error generating presigned URL for key:', s3Key, error);
       // Return placeholder on error
-      return `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23374151" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" font-size="20" fill="%239CA3AF" text-anchor="middle" dominant-baseline="middle"%3EPreview Image%3C/text%3E%3C/svg%3E`;
+      return this.getPlaceholderUrl();
     }
+  }
+
+  private getPlaceholderUrl(): string {
+    return `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23374151" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" font-size="20" fill="%239CA3AF" text-anchor="middle" dominant-baseline="middle"%3EPreview Image%3C/text%3E%3C/svg%3E`;
   }
 
   async getPresignedUrls(s3Keys: string[], expiresIn: number = 3600): Promise<string[]> {

@@ -65,22 +65,29 @@ export class AssetsService {
   }
 
   async findById(id: string) {
-    const asset = await this.prisma.asset.findUnique({
-      where: { id },
-      include: { category: true, seller: { select: { id: true, name: true } } },
-    });
+    try {
+      const asset = await this.prisma.asset.findUnique({
+        where: { id },
+        include: { category: true, seller: { select: { id: true, name: true } } },
+      });
 
-    if (!asset) {
-      throw new NotFoundException('Asset not found');
+      if (!asset) {
+        throw new NotFoundException('Asset not found');
+      }
+
+      // Convert S3 URLs to presigned URLs
+      return {
+        ...asset,
+        previewUrls: asset.previewUrls.length > 0
+          ? await this.presigner.getPresignedUrls(asset.previewUrls, 3600)
+          : [],
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new Error(`Failed to fetch asset: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    // Convert S3 URLs to presigned URLs
-    return {
-      ...asset,
-      previewUrls: asset.previewUrls.length > 0
-        ? await this.presigner.getPresignedUrls(asset.previewUrls, 3600)
-        : [],
-    };
   }
 
   async create(data: any) {

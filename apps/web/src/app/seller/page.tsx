@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import Swal from 'sweetalert2';
 import { NeonButton } from '@/components/ui/neon-button';
+import { Badge } from '@/components/ui/badge';
+import { Navbar } from '@/components/ui/navbar';
+import { Footer } from '@/components/ui/footer';
 
 interface SellerAsset {
   id: string;
@@ -16,11 +18,42 @@ interface SellerAsset {
   createdDate: string;
 }
 
+/* ─── helpers ─── */
+const syne = 'font-[family-name:var(--font-syne)]';
+const jb = 'font-[family-name:var(--font-jetbrains)]';
+const label = `text-[10px] ${jb} tracking-[3px] uppercase text-[rgba(240,240,240,0.25)] block mb-2`;
+const input = `w-full bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-[3px] px-4 py-3 text-[#f0f0f0] text-[12px] ${jb} focus:border-[rgba(0,255,255,0.4)] focus:shadow-[0_0_20px_rgba(0,255,255,0.1)] focus:outline-none transition-all placeholder:text-[rgba(240,240,240,0.15)]`;
+
+const tabBtn = (active: boolean) =>
+  `w-full text-left px-4 py-3 rounded-[3px] text-[12px] ${jb} tracking-wide transition-all ${active
+    ? 'bg-[rgba(245,158,11,0.08)] text-[#F59E0B] border border-[rgba(245,158,11,0.3)]'
+    : 'text-[rgba(240,240,240,0.35)] hover:text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.03)]'
+  }`;
+
+/* ─── Sparkline Component ─── */
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  const max = Math.max(...data);
+  return (
+    <div className="sparkline">
+      {data.map((val, i) => (
+        <div
+          key={i}
+          className="sparkline-bar"
+          style={{
+            height: `${(val / max) * 100}%`,
+            background: i === data.length - 1 ? color : `${color}40`,
+            animationDelay: `${i * 50}ms`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function SellerDashboardPage() {
   const [assets, setAssets] = useState<SellerAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'assets' | 'upload'>('overview');
-  const [showUploadModal, setShowUploadModal] = useState(false);
   const [assetFile, setAssetFile] = useState<File | null>(null);
   const [previewImage, setPreviewImage] = useState<File | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string>('');
@@ -32,544 +65,380 @@ export default function SellerDashboardPage() {
     license: 'Personal Use',
   });
   const [submitting, setSubmitting] = useState(false);
-  const [categories, setCategories] = useState<string[]>([
-    '3D Models',
-    'Code Snippets',
-    'Notion Templates',
-    'UI Kits',
-  ]);
+  const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState<'asset' | 'preview' | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    // TODO: Fetch seller assets from API
-    // For now, mock data
-    setAssets([
-      {
-        id: '1',
-        name: 'Modern 3D Character Model',
-        category: '3D Models',
-        price: 49.99,
-        status: 'Active',
-        sales: 12,
-        revenue: 599.88,
-        createdDate: '2025-01-15',
-      },
-      {
-        id: '2',
-        name: 'React Component Library',
-        category: 'Code Snippets',
-        price: 29.99,
-        status: 'Active',
-        sales: 8,
-        revenue: 239.92,
-        createdDate: '2025-01-20',
-      },
-      {
-        id: '3',
-        name: 'Productivity Notion Template',
-        category: 'Notion Templates',
-        price: 19.99,
-        status: 'Inactive',
-        sales: 5,
-        revenue: 99.95,
-        createdDate: '2025-02-01',
-      },
-    ]);
-    setLoading(false);
+    const loadAssets = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/assets?limit=100`);
+        if (!response.ok) throw new Error('Failed to load assets');
+        const data = await response.json();
+        const assetsArray = Array.isArray(data) ? data : data?.assets || [];
+        const mappedAssets: SellerAsset[] = assetsArray.map((asset: any) => ({
+          id: asset.id,
+          name: asset.name,
+          category: asset.category?.name || 'Unknown',
+          price: asset.price,
+          status: asset.status === 'ACTIVE' ? 'Active' : 'Inactive',
+          sales: 0,
+          revenue: 0,
+          createdDate: asset.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+        }));
+        setAssets(mappedAssets);
+      } catch {
+        setAssets([
+          { id: 'asset_1', name: 'Modern 3D Character Model', category: '3D Models', price: 49.99, status: 'Active', sales: 12, revenue: 599.88, createdDate: '2025-01-15' },
+          { id: 'asset_2', name: 'React Component Library', category: 'Code Snippets', price: 29.99, status: 'Active', sales: 8, revenue: 239.92, createdDate: '2025-01-20' },
+          { id: 'asset_3', name: 'Productivity Notion Template', category: 'Notion Templates', price: 19.99, status: 'Inactive', sales: 5, revenue: 99.95, createdDate: '2025-02-01' },
+          { id: 'asset_4', name: 'Cyberpunk Icon Set', category: 'UI Kits', price: 15.00, status: 'Active', sales: 22, revenue: 330.00, createdDate: '2025-02-10' },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadAssets();
   }, []);
 
   const totalRevenue = assets.reduce((sum, a) => sum + a.revenue, 0);
   const totalSales = assets.reduce((sum, a) => sum + a.sales, 0);
   const activeAssets = assets.filter((a) => a.status === 'Active').length;
 
-  const handleAssetFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      setAssetFile(files[0]);
-    }
-  };
+  /* ─── Sparkline mock data ─── */
+  const revenueSparkline = [120, 180, 90, 210, 300, 250, 380, 420, 350, 480, 520, 600];
+  const salesSparkline = [3, 5, 2, 7, 4, 8, 6, 9, 7, 11, 10, 12];
+  const viewsSparkline = [40, 65, 80, 55, 90, 120, 100, 140, 130, 160, 180, 200];
 
-  const handleAssetFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setAssetFile(e.target.files[0]);
-    }
+  /* ─── File handlers ─── */
+  const handleAssetFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault(); e.stopPropagation();
+    setDragActive(null);
+    if (e.dataTransfer.files.length > 0) setAssetFile(e.dataTransfer.files[0]);
   };
+  const handleAssetFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files?.[0]) setAssetFile(e.target.files[0]); };
 
   const handlePreviewImageDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      const file = files[0];
-      setPreviewImage(file);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setPreviewImageUrl(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+    e.preventDefault(); e.stopPropagation();
+    setDragActive(null);
+    if (e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0]; setPreviewImage(file);
+      const reader = new FileReader(); reader.onload = (ev) => setPreviewImageUrl(ev.target?.result as string); reader.readAsDataURL(file);
     }
   };
-
   const handlePreviewImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      setPreviewImage(file);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setPreviewImageUrl(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (e.target.files?.[0]) {
+      const file = e.target.files[0]; setPreviewImage(file);
+      const reader = new FileReader(); reader.onload = (ev) => setPreviewImageUrl(ev.target?.result as string); reader.readAsDataURL(file);
     }
   };
 
-  const handleFormChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    // Clear error on change
+    setFormErrors((prev) => ({ ...prev, [e.target.name]: '' }));
   };
 
+  /* ─── File-to-base64 helper ─── */
+  const toBase64 = (file: File): Promise<string> =>
+    new Promise((resolve) => { const r = new FileReader(); r.onload = () => resolve(r.result as string); r.readAsDataURL(file); });
+
+  /* ─── Validation ─── */
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+    if (!formData.title.trim()) errors.title = 'Title is required';
+    if (!formData.price || parseFloat(formData.price) <= 0) errors.price = 'Enter a valid price';
+    if (!assetFile && !editingAssetId) errors.assetFile = 'Please upload an asset file';
+    if (!previewImage && !editingAssetId) errors.previewImage = 'Please upload a preview image';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  /* ─── Publish / Save Draft ─── */
   const handlePublishAsset = async () => {
-    if (!assetFile) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Missing File',
-        text: 'Please upload an asset file',
-        confirmButtonColor: '#0FF',
-      });
-      return;
-    }
-    if (!previewImage) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Missing Preview',
-        text: 'Please upload a preview image',
-        confirmButtonColor: '#0FF',
-      });
-      return;
-    }
-    if (!formData.title.trim()) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Missing Title',
-        text: 'Please enter an asset title',
-        confirmButtonColor: '#0FF',
-      });
-      return;
-    }
-    if (!formData.price || parseFloat(formData.price) <= 0) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Invalid Price',
-        text: 'Please enter a valid price',
-        confirmButtonColor: '#0FF',
-      });
-      return;
-    }
+    if (!validateForm()) return;
 
     setSubmitting(true);
     try {
-      // Convert files to base64
-      const assetFileBase64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(assetFile);
-      });
+      const assetFileBase64 = assetFile && !editingAssetId ? await toBase64(assetFile) : '';
+      const previewImageBase64 = previewImage && !editingAssetId ? await toBase64(previewImage) : '';
 
-      const previewImageBase64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(previewImage);
-      });
+      const url = editingAssetId ? `${process.env.NEXT_PUBLIC_API_URL}/assets/${editingAssetId}` : `${process.env.NEXT_PUBLIC_API_URL}/assets`;
+      const method = editingAssetId ? 'PATCH' : 'POST';
+      const payload: any = { name: formData.title, description: formData.description, price: parseFloat(formData.price), categoryId: formData.category, status: 'ACTIVE' };
+      if (!editingAssetId) { payload.sellerId = 'seller_123'; payload.fileKey = assetFile?.name || ''; payload.previewUrls = previewImage ? [previewImage.name] : []; payload.assetFileBase64 = assetFileBase64; payload.previewImageBase64 = previewImageBase64; }
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/assets`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: formData.title,
-            description: formData.description,
-            price: parseFloat(formData.price),
-            categoryId: formData.category,
-            sellerId: 'seller_123',
-            status: 'ACTIVE',
-            fileKey: assetFile.name,
-            previewUrls: [previewImage.name],
-            assetFileBase64,
-            previewImageBase64,
-          }),
-        }
-      );
+      const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!response.ok) { const error = await response.json(); throw new Error(error.message || 'Failed to publish asset'); }
+      const result = await response.json();
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to publish asset');
+      if (editingAssetId) {
+        setAssets(assets.map((a) => a.id === editingAssetId ? { ...a, name: formData.title, category: formData.category, price: parseFloat(formData.price) } : a));
+      } else {
+        setAssets([...assets, { id: result.id, name: formData.title, category: formData.category, price: parseFloat(formData.price), status: 'Active', sales: 0, revenue: 0, createdDate: new Date().toISOString().split('T')[0] }]);
       }
 
-      await Swal.fire({
-        icon: 'success',
-        title: 'Published!',
-        text: 'Asset published successfully!',
-        confirmButtonColor: '#0FF',
-      });
-      resetForm();
-      setActiveTab('assets');
+      await Swal.fire({ icon: 'success', title: editingAssetId ? 'Updated!' : 'Published!', text: editingAssetId ? 'Asset updated successfully!' : 'Asset published successfully!', confirmButtonColor: '#0FF' });
+      resetForm(); setActiveTab('assets');
     } catch (error) {
-      console.error('Failed to publish asset:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: error instanceof Error ? error.message : 'Failed to publish asset',
-        confirmButtonColor: '#0FF',
-      });
-    } finally {
-      setSubmitting(false);
-    }
+      Swal.fire({ icon: 'error', title: 'Error', text: error instanceof Error ? error.message : 'Failed to publish asset', confirmButtonColor: '#0FF' });
+    } finally { setSubmitting(false); }
   };
 
   const handleSaveDraft = async () => {
-    if (!formData.title.trim()) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Missing Title',
-        text: 'Please enter an asset title',
-        confirmButtonColor: '#0FF',
-      });
-      return;
-    }
-
+    if (!formData.title.trim()) { setFormErrors({ title: 'Title is required' }); return; }
     setSubmitting(true);
     try {
-      let assetFileBase64 = '';
-      let previewImageBase64 = '';
-
-      if (assetFile) {
-        assetFileBase64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(assetFile);
-        });
-      }
-
-      if (previewImage) {
-        previewImageBase64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(previewImage);
-        });
-      }
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/assets`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: formData.title,
-            description: formData.description,
-            price: formData.price ? parseFloat(formData.price) : 0,
-            categoryId: formData.category,
-            sellerId: 'seller_123',
-            status: 'PENDING_REVIEW',
-            fileKey: assetFile?.name || '',
-            previewUrls: previewImage ? [previewImage.name] : [],
-            assetFileBase64,
-            previewImageBase64,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to save draft');
-      }
-
-      await Swal.fire({
-        icon: 'success',
-        title: 'Saved!',
-        text: 'Draft saved successfully!',
-        confirmButtonColor: '#0FF',
+      const assetFileBase64 = assetFile ? await toBase64(assetFile) : '';
+      const previewImageBase64 = previewImage ? await toBase64(previewImage) : '';
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/assets`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: formData.title, description: formData.description, price: formData.price ? parseFloat(formData.price) : 0, categoryId: formData.category, sellerId: 'seller_123', status: 'PENDING_REVIEW', fileKey: assetFile?.name || '', previewUrls: previewImage ? [previewImage.name] : [], assetFileBase64, previewImageBase64 }),
       });
-      resetForm();
-      setActiveTab('assets');
+      if (!response.ok) { const error = await response.json(); throw new Error(error.message || 'Failed to save draft'); }
+      await Swal.fire({ icon: 'success', title: 'Saved!', text: 'Draft saved successfully!', confirmButtonColor: '#0FF' });
+      resetForm(); setActiveTab('assets');
     } catch (error) {
-      console.error('Failed to save draft:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: error instanceof Error ? error.message : 'Failed to save draft',
-        confirmButtonColor: '#0FF',
-      });
-    } finally {
-      setSubmitting(false);
+      Swal.fire({ icon: 'error', title: 'Error', text: error instanceof Error ? error.message : 'Failed to save draft', confirmButtonColor: '#0FF' });
+    } finally { setSubmitting(false); }
+  };
+
+  const resetForm = () => { setAssetFile(null); setPreviewImage(null); setPreviewImageUrl(''); setFormData({ title: '', description: '', category: '3D Models', price: '', license: 'Personal Use' }); setEditingAssetId(null); setFormErrors({}); };
+
+  const handleEditAsset = (asset: SellerAsset) => {
+    setFormData({ title: asset.name, description: '', category: asset.category, price: asset.price.toString(), license: 'Personal Use' });
+    setEditingAssetId(asset.id); setActiveTab('upload');
+  };
+
+  const handleDeleteAsset = async (assetId: string, assetName: string) => {
+    const result = await Swal.fire({ icon: 'warning', title: 'Delete Asset?', text: `Are you sure you want to delete "${assetName}"? This action cannot be undone.`, showCancelButton: true, confirmButtonColor: '#FF6B6B', cancelButtonColor: '#6B7280', confirmButtonText: 'Delete', cancelButtonText: 'Cancel' });
+    if (!result.isConfirmed) return;
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/assets/${assetId}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete asset');
+      setAssets(assets.filter((a) => a.id !== assetId));
+      await Swal.fire({ icon: 'success', title: 'Deleted!', text: 'Asset deleted successfully!', confirmButtonColor: '#0FF' });
+    } catch (error) {
+      Swal.fire({ icon: 'error', title: 'Error', text: error instanceof Error ? error.message : 'Failed to delete asset', confirmButtonColor: '#0FF' });
     }
   };
 
-  const resetForm = () => {
-    setAssetFile(null);
-    setPreviewImage(null);
-    setPreviewImageUrl('');
-    setFormData({
-      title: '',
-      description: '',
-      category: '3D Models',
-      price: '',
-      license: 'Personal Use',
-    });
+  const catBadge = (cat: string) => {
+    if (cat === '3D Models') return 'cyan' as const;
+    if (cat === 'Code Snippets') return 'amber' as const;
+    return 'purple' as const;
   };
 
+  /* ════════════════════ RENDER ════════════════════ */
   return (
-    <div className="w-full h-screen bg-black text-white flex flex-col">
-      {/* Header */}
-      <header className="border-b border-gray-800 bg-black/50 backdrop-blur sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/" className="text-2xl font-syne font-bold tracking-wider">
-            NEXVAULT
-          </Link>
-          <Link
-            href="/catalogue"
-            className="text-sm text-gray-400 hover:text-cyan-400 transition"
-          >
-            ← Back to Catalogue
-          </Link>
-        </div>
-      </header>
+    <div className="w-full min-h-screen bg-[#050505] text-[#f0f0f0] flex flex-col">
+      <Navbar />
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 py-12 w-full overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-gray-900/50 border border-gray-800 rounded-sm p-6 space-y-6 sticky top-24">
-              {/* Profile Section */}
-              <div className="space-y-3">
-                <div className="w-16 h-16 rounded-full bg-amber-500/20 border border-amber-500/50 flex items-center justify-center">
-                  <span className="text-2xl">🎨</span>
+      <main className="flex-1 max-w-7xl mx-auto px-6 md:px-12 py-16 w-full pt-[calc(65px+4rem)]">
+        <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-10">
+
+          {/* ── Sidebar ── */}
+          <aside>
+            <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-6 space-y-6 sticky top-[90px]">
+              {/* Profile */}
+              <div className="space-y-3 pb-5 border-b border-[rgba(255,255,255,0.06)]">
+                <div className="w-14 h-14 rounded-[3px] bg-[rgba(245,158,11,0.08)] border border-[rgba(245,158,11,0.25)] flex items-center justify-center">
+                  <i className="fa-solid fa-palette text-xl text-[#F59E0B]" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 font-mono uppercase tracking-wider">
-                    Seller Account
-                  </p>
-                  <p className="text-lg font-syne font-bold">Creator Studio</p>
-                  <p className="text-xs text-gray-500">seller@nexvault.com</p>
+                  <span className={`text-[9px] ${jb} tracking-[3px] uppercase text-[rgba(240,240,240,0.2)]`}>Seller Account</span>
+                  <p className={`${syne} text-base font-bold text-[#f0f0f0] mt-0.5`}>Creator Studio</p>
+                  <p className={`text-[10px] ${jb} text-[rgba(240,240,240,0.2)]`}>seller@prosets.io</p>
                 </div>
               </div>
 
-              {/* Navigation */}
-              <div className="space-y-2 border-t border-gray-800 pt-4">
-                <button
-                  onClick={() => setActiveTab('overview')}
-                  className={`w-full text-left px-3 py-2 rounded-sm text-sm transition ${
-                    activeTab === 'overview'
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  Overview
+              {/* Quick Stats */}
+              <div className="space-y-3 pb-5 border-b border-[rgba(255,255,255,0.06)]">
+                <div>
+                  <span className={`text-[9px] ${jb} tracking-[3px] uppercase text-[rgba(240,240,240,0.15)]`}>Total Revenue</span>
+                  <p className={`${syne} text-xl font-extrabold text-[#00ffff]`}>${totalRevenue.toFixed(2)}</p>
+                </div>
+                <div>
+                  <span className={`text-[9px] ${jb} tracking-[3px] uppercase text-[rgba(240,240,240,0.15)]`}>Assets</span>
+                  <p className={`${syne} text-xl font-extrabold text-[#f0f0f0]`}>{assets.length}</p>
+                </div>
+              </div>
+
+              {/* Tabs */}
+              <div className="space-y-1">
+                <button onClick={() => setActiveTab('overview')} className={tabBtn(activeTab === 'overview')}>
+                  <i className="fa-solid fa-chart-line mr-2.5 text-xs" />Overview
                 </button>
-                <button
-                  onClick={() => setActiveTab('assets')}
-                  className={`w-full text-left px-3 py-2 rounded-sm text-sm transition ${
-                    activeTab === 'assets'
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  My Assets
+                <button onClick={() => setActiveTab('assets')} className={tabBtn(activeTab === 'assets')}>
+                  <i className="fa-solid fa-box mr-2.5 text-xs" />My Assets
                 </button>
-                <button
-                  onClick={() => setActiveTab('upload')}
-                  className={`w-full text-left px-3 py-2 rounded-sm text-sm transition ${
-                    activeTab === 'upload'
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  Upload Asset
+                <button onClick={() => { resetForm(); setActiveTab('upload'); }} className={tabBtn(activeTab === 'upload')}>
+                  <i className="fa-solid fa-cloud-arrow-up mr-2.5 text-xs" />Upload Asset
                 </button>
               </div>
 
-              {/* Logout */}
               <NeonButton variant="ghost" size="sm" className="w-full">
-                Logout
+                <i className="fa-solid fa-right-from-bracket mr-2" />Logout
               </NeonButton>
             </div>
-          </div>
+          </aside>
 
-          {/* Main Content */}
-          <div className="lg:col-span-3">
+          {/* ── Main Content ── */}
+          <div>
+            {/* ─── OVERVIEW ─── */}
             {activeTab === 'overview' && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-3xl font-syne font-bold mb-2">Revenue Overview</h2>
-                  <p className="text-gray-400">Track your sales and earnings</p>
+              <div className="space-y-8 animate-[fadeIn_.3s_ease]">
+                <div className="border-b border-[rgba(255,255,255,0.06)] pb-6">
+                  <h2 className={`${syne} text-[clamp(28px,4vw,40px)] font-extrabold leading-[1]`}>Revenue <span className="text-[#F59E0B]">Overview</span></h2>
+                  <p className={`text-[12px] ${jb} text-[rgba(240,240,240,0.3)] mt-2`}>Track your sales and earnings</p>
                 </div>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gray-900/50 border border-gray-800 rounded-sm p-6 space-y-2">
-                    <p className="text-sm text-gray-500 font-mono uppercase tracking-wider">
-                      Total Revenue
-                    </p>
-                    <p className="text-4xl font-syne font-bold text-cyan-400">
-                      ${totalRevenue.toFixed(2)}
-                    </p>
-                    <p className="text-xs text-gray-500">From {totalSales} sales</p>
-                  </div>
-
-                  <div className="bg-gray-900/50 border border-gray-800 rounded-sm p-6 space-y-2">
-                    <p className="text-sm text-gray-500 font-mono uppercase tracking-wider">
-                      Active Assets
-                    </p>
-                    <p className="text-4xl font-syne font-bold text-amber-400">
-                      {activeAssets}
-                    </p>
-                    <p className="text-xs text-gray-500">Of {assets.length} total</p>
-                  </div>
-
-                  <div className="bg-gray-900/50 border border-gray-800 rounded-sm p-6 space-y-2">
-                    <p className="text-sm text-gray-500 font-mono uppercase tracking-wider">
-                      Total Sales
-                    </p>
-                    <p className="text-4xl font-syne font-bold text-green-400">
-                      {totalSales}
-                    </p>
-                    <p className="text-xs text-gray-500">All time</p>
-                  </div>
+                {/* Stats with Sparklines */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-[1px] bg-[rgba(255,255,255,0.06)] rounded-[3px] overflow-hidden">
+                  {[
+                    { label: 'Total Revenue', value: `$${totalRevenue.toFixed(2)}`, trend: '+18.2%', trendUp: true, color: '#00ffff', icon: 'fa-solid fa-dollar-sign', sparkData: revenueSparkline },
+                    { label: 'Active Assets', value: activeAssets.toString(), trend: `${assets.length} total`, trendUp: true, color: '#F59E0B', icon: 'fa-solid fa-box', sparkData: viewsSparkline },
+                    { label: 'Total Sales', value: totalSales.toString(), trend: '+12% this month', trendUp: true, color: '#22c55e', icon: 'fa-solid fa-chart-bar', sparkData: salesSparkline },
+                  ].map((stat) => (
+                    <div key={stat.label} className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md p-7 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 border rounded-[3px] flex items-center justify-center text-xs" style={{ borderColor: `${stat.color}30`, color: stat.color }}>
+                            <i className={stat.icon} />
+                          </div>
+                          <span className={`text-[9px] ${jb} tracking-[3px] uppercase text-[rgba(240,240,240,0.25)]`}>{stat.label}</span>
+                        </div>
+                        <Sparkline data={stat.sparkData} color={stat.color} />
+                      </div>
+                      <p className={`${syne} text-4xl font-extrabold`} style={{ color: stat.color }}>{stat.value}</p>
+                      <div className="flex items-center gap-2">
+                        {stat.trendUp && <i className="fa-solid fa-arrow-trend-up text-[10px] text-[#22c55e]" />}
+                        <p className={`text-[10px] ${jb} text-[rgba(240,240,240,0.3)]`}>{stat.trend}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
-                {/* Recent Activity */}
-                <div className="bg-gray-900/50 border border-gray-800 rounded-sm p-6 space-y-4">
-                  <h3 className="font-syne font-bold text-lg">Recent Sales</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between py-3 border-b border-gray-800">
-                      <div>
-                        <p className="font-syne font-bold text-white">Modern 3D Character Model</p>
-                        <p className="text-xs text-gray-500">2 hours ago</p>
-                      </div>
-                      <p className="text-cyan-400 font-syne font-bold">+$49.99</p>
-                    </div>
-                    <div className="flex items-center justify-between py-3 border-b border-gray-800">
-                      <div>
-                        <p className="font-syne font-bold text-white">React Component Library</p>
-                        <p className="text-xs text-gray-500">5 hours ago</p>
-                      </div>
-                      <p className="text-cyan-400 font-syne font-bold">+$29.99</p>
-                    </div>
-                    <div className="flex items-center justify-between py-3">
-                      <div>
-                        <p className="font-syne font-bold text-white">Productivity Notion Template</p>
-                        <p className="text-xs text-gray-500">1 day ago</p>
-                      </div>
-                      <p className="text-cyan-400 font-syne font-bold">+$19.99</p>
+                {/* Revenue Chart placeholder */}
+                <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className={`${syne} font-bold text-lg`}>Earnings Trend</h3>
+                    <div className="flex gap-2">
+                      {['7D', '1M', '3M', '1Y'].map((period) => (
+                        <button key={period} className={`px-2.5 py-1 rounded-[3px] text-[10px] ${jb} transition-all ${period === '1M' ? 'bg-[rgba(0,255,255,0.1)] text-[#00ffff] border border-[rgba(0,255,255,0.3)]' : 'text-[rgba(240,240,240,0.25)] hover:text-[#f0f0f0]'}`}>
+                          {period}
+                        </button>
+                      ))}
                     </div>
                   </div>
+                  {/* CSS-only bar chart */}
+                  <div className="flex items-end gap-2 h-40">
+                    {revenueSparkline.map((val, i) => {
+                      const max = Math.max(...revenueSparkline);
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                          <div
+                            className="w-full rounded-[2px] transition-all duration-700 hover:opacity-80 relative group"
+                            style={{
+                              height: `${(val / max) * 100}%`,
+                              background: `linear-gradient(to top, rgba(0,255,255,0.4), rgba(0,255,255,0.15))`,
+                              animationDelay: `${i * 80}ms`,
+                            }}
+                          >
+                            {/* Tooltip */}
+                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <span className={`${jb} text-[9px] text-[#00ffff] bg-[rgba(0,0,0,0.8)] px-1.5 py-0.5 rounded-[2px] whitespace-nowrap`}>${val}</span>
+                            </div>
+                          </div>
+                          <span className={`text-[8px] ${jb} text-[rgba(240,240,240,0.15)]`}>{['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'][i]}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                {/* Quick Actions */}
-                <div className="space-y-3">
-                  <NeonButton
-                    variant="primary"
-                    size="lg"
-                    onClick={() => setActiveTab('upload')}
-                    className="w-full"
-                  >
-                    + Upload New Asset
-                  </NeonButton>
+                {/* Recent Sales */}
+                <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-6">
+                  <h3 className={`${syne} font-bold text-lg mb-5`}>Recent Sales</h3>
+                  <div className="space-y-0 divide-y divide-[rgba(255,255,255,0.04)]">
+                    {[
+                      { name: 'Modern 3D Character Model', time: '2 hours ago', amount: '+$49.99', cat: '3D Models' },
+                      { name: 'React Component Library', time: '5 hours ago', amount: '+$29.99', cat: 'Code Snippets' },
+                      { name: 'Cyberpunk Icon Set', time: '12 hours ago', amount: '+$15.00', cat: 'UI Kits' },
+                      { name: 'Productivity Notion Template', time: '1 day ago', amount: '+$19.99', cat: 'Notion Templates' },
+                    ].map((sale) => (
+                      <div key={sale.name} className="flex items-center justify-between py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-[rgba(0,255,255,0.06)] border border-[rgba(0,255,255,0.15)] rounded-[3px] flex items-center justify-center">
+                            <i className="fa-solid fa-arrow-down text-[10px] text-[#00ffff]" />
+                          </div>
+                          <div>
+                            <p className={`${syne} font-bold text-sm text-[#f0f0f0]`}>{sale.name}</p>
+                            <p className={`text-[10px] ${jb} text-[rgba(240,240,240,0.2)]`}>{sale.cat} · {sale.time}</p>
+                          </div>
+                        </div>
+                        <p className={`${syne} font-bold text-[#00ffff]`}>{sale.amount}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
+                <NeonButton variant="primary" size="lg" onClick={() => setActiveTab('upload')} className="w-full">
+                  <i className="fa-solid fa-plus mr-2" />Upload New Asset
+                </NeonButton>
               </div>
             )}
 
+            {/* ─── ASSETS ─── */}
             {activeTab === 'assets' && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
+              <div className="space-y-8 animate-[fadeIn_.3s_ease]">
+                <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.06)] pb-6">
                   <div>
-                    <h2 className="text-3xl font-syne font-bold mb-2">My Assets</h2>
-                    <p className="text-gray-400">
-                      {assets.length} asset{assets.length !== 1 ? 's' : ''} published
-                    </p>
+                    <h2 className={`${syne} text-[clamp(28px,4vw,40px)] font-extrabold leading-[1]`}>My <span className="text-[#F59E0B]">Assets</span></h2>
+                    <p className={`text-[12px] ${jb} text-[rgba(240,240,240,0.3)] mt-2`}>{assets.length} asset{assets.length !== 1 ? 's' : ''} published</p>
                   </div>
-                  <NeonButton
-                    variant="primary"
-                    size="md"
-                    onClick={() => setActiveTab('upload')}
-                  >
-                    + Upload
+                  <NeonButton variant="primary" size="sm" onClick={() => { resetForm(); setActiveTab('upload'); }}>
+                    <i className="fa-solid fa-plus mr-1.5" />Upload
                   </NeonButton>
                 </div>
 
                 {loading ? (
-                  <div className="text-center py-12">
-                    <div className="w-12 h-12 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                  <div className="flex items-center justify-center py-20">
+                    <div className="w-10 h-10 border-2 border-[#F59E0B] border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : assets.length === 0 ? (
-                  <div className="bg-gray-900/50 border border-gray-800 rounded-sm p-12 text-center">
-                    <p className="text-gray-400 mb-4">No assets uploaded yet</p>
-                    <NeonButton
-                      variant="primary"
-                      size="md"
-                      onClick={() => setActiveTab('upload')}
-                    >
-                      Upload Your First Asset
-                    </NeonButton>
+                  <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-16 text-center">
+                    <i className="fa-solid fa-box-open text-3xl text-[rgba(240,240,240,0.1)] mb-4 block" />
+                    <p className={`text-[rgba(240,240,240,0.3)] ${jb} text-sm mb-5`}>No assets uploaded yet</p>
+                    <NeonButton variant="primary" size="md" onClick={() => setActiveTab('upload')}>Upload Your First Asset</NeonButton>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {assets.map((asset) => (
-                      <div
-                        key={asset.id}
-                        className="bg-gray-900/50 border border-gray-800 rounded-sm p-4 flex items-center justify-between hover:border-gray-700 transition"
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span
-                              className={`text-xs font-mono font-bold px-2 py-1 border rounded-sm ${
-                                asset.category === '3D Models'
-                                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50'
-                                  : asset.category === 'Code Snippets'
-                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/50'
-                                    : 'bg-purple-500/20 text-purple-300 border-purple-500/50'
-                              }`}
-                            >
-                              {asset.category}
-                            </span>
-                            <span
-                              className={`text-xs font-mono font-bold px-2 py-1 border rounded-sm ${
-                                asset.status === 'Active'
-                                  ? 'bg-green-500/20 text-green-300 border-green-500/50'
-                                  : 'bg-gray-500/20 text-gray-300 border-gray-500/50'
-                              }`}
-                            >
-                              {asset.status}
-                            </span>
+                      <div key={asset.id} className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:border-[rgba(255,255,255,0.12)] hover:bg-[rgba(255,255,255,0.03)]">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant={catBadge(asset.category)}>{asset.category}</Badge>
+                            <Badge variant={asset.status === 'Active' ? 'green' : 'gray'}>{asset.status}</Badge>
                           </div>
-                          <h3 className="font-syne font-bold text-white mb-1">{asset.name}</h3>
-                          <p className="text-xs text-gray-500">
-                            {asset.sales} sales • ${asset.revenue.toFixed(2)} revenue
-                          </p>
+                          <h3 className={`${syne} font-bold text-[#f0f0f0] text-sm truncate`}>{asset.name}</h3>
+                          <div className="flex items-center gap-4 mt-1.5">
+                            <p className={`text-[10px] ${jb} text-[rgba(240,240,240,0.2)]`}>{asset.sales} sales</p>
+                            <p className={`text-[10px] ${jb} text-[rgba(240,240,240,0.2)]`}>${asset.revenue.toFixed(2)} revenue</p>
+                            {/* Mini performance bar */}
+                            <div className="progress-bar w-16">
+                              <div
+                                className="progress-bar-fill bg-[#00ffff]"
+                                style={{ width: `${Math.min((asset.sales / Math.max(...assets.map(a => a.sales), 1)) * 100, 100)}%` }}
+                              />
+                            </div>
+                          </div>
                         </div>
-
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-lg font-syne font-bold text-cyan-400">
-                              ${asset.price.toFixed(2)}
-                            </p>
-                          </div>
-                          <div className="space-y-2">
-                            <NeonButton variant="secondary" size="sm">
-                              Edit
-                            </NeonButton>
-                            <NeonButton variant="ghost" size="sm">
-                              Delete
-                            </NeonButton>
+                        <div className="flex items-center gap-4 shrink-0">
+                          <span className={`${syne} text-xl font-extrabold text-[#00ffff]`}>${asset.price.toFixed(2)}</span>
+                          <div className="flex gap-2">
+                            <NeonButton variant="secondary" size="xs" onClick={() => handleEditAsset(asset)}>Edit</NeonButton>
+                            <NeonButton variant="danger" size="xs" onClick={() => handleDeleteAsset(asset.id, asset.name)}>Delete</NeonButton>
                           </div>
                         </div>
                       </div>
@@ -579,193 +448,142 @@ export default function SellerDashboardPage() {
               </div>
             )}
 
+            {/* ─── UPLOAD ─── */}
             {activeTab === 'upload' && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-3xl font-syne font-bold mb-2">Upload New Asset</h2>
-                  <p className="text-gray-400">Share your creation with the NexVault community</p>
+              <div className="space-y-8 animate-[fadeIn_.3s_ease]">
+                <div className="border-b border-[rgba(255,255,255,0.06)] pb-6">
+                  <h2 className={`${syne} text-[clamp(28px,4vw,40px)] font-extrabold leading-[1]`}>
+                    {editingAssetId ? 'Edit' : 'Upload New'} <span className="text-[#F59E0B]">Asset</span>
+                  </h2>
+                  <p className={`text-[12px] ${jb} text-[rgba(240,240,240,0.3)] mt-2`}>Share your creation with the Prosets community</p>
                 </div>
 
-                <div className="bg-gray-900/50 border border-gray-800 rounded-sm p-8 space-y-6">
-                  {/* Asset File Upload */}
+                <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-8 space-y-7">
+                  {/* Asset File */}
                   <div>
-                    <label className="text-sm text-gray-500 font-mono uppercase tracking-wider block mb-3">
-                      Asset File
-                    </label>
+                    <label className={label}>Asset File</label>
                     <div
                       onDrop={handleAssetFileDrop}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                      className="border-2 border-dashed border-gray-700 rounded-sm p-8 text-center hover:border-cyan-500 transition cursor-pointer"
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive('asset'); }}
+                      onDragLeave={() => setDragActive(null)}
+                      className={`border-2 border-dashed rounded-[3px] p-10 text-center transition-all cursor-pointer group ${dragActive === 'asset'
+                          ? 'border-[#00ffff] bg-[rgba(0,255,255,0.04)] shadow-[0_0_30px_rgba(0,255,255,0.1)]'
+                          : formErrors.assetFile
+                            ? 'border-[rgba(239,68,68,0.4)] bg-[rgba(239,68,68,0.02)]'
+                            : 'border-[rgba(255,255,255,0.08)] hover:border-[rgba(0,255,255,0.3)]'
+                        }`}
                     >
-                      <input
-                        type="file"
-                        id="asset-file"
-                        onChange={handleAssetFileChange}
-                        className="hidden"
-                      />
+                      <input type="file" id="asset-file" onChange={handleAssetFileChange} className="hidden" />
                       <label htmlFor="asset-file" className="cursor-pointer block">
                         {assetFile ? (
                           <div>
-                            <p className="text-cyan-400 font-mono text-sm">✓ {assetFile.name}</p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {(assetFile.size / 1024 / 1024).toFixed(2)} MB
-                            </p>
+                            <i className="fa-solid fa-check-circle text-[#00ffff] text-xl mb-2 block" />
+                            <p className={`text-[#00ffff] ${jb} text-[12px]`}>{assetFile.name}</p>
+                            <p className={`text-[10px] ${jb} text-[rgba(240,240,240,0.2)] mt-1`}>{(assetFile.size / 1024 / 1024).toFixed(2)} MB</p>
                           </div>
                         ) : (
                           <div>
-                            <p className="text-gray-400 mb-2">Drag and drop your file here</p>
-                            <p className="text-xs text-gray-500">or click to browse</p>
+                            <div className={`w-16 h-16 mx-auto mb-4 rounded-[3px] border-2 border-dashed flex items-center justify-center transition-all ${dragActive === 'asset' ? 'border-[#00ffff] text-[#00ffff]' : 'border-[rgba(255,255,255,0.08)] text-[rgba(240,240,240,0.15)] group-hover:text-[rgba(0,255,255,0.4)] group-hover:border-[rgba(0,255,255,0.2)]'}`} style={dragActive === 'asset' ? { animation: 'glow-pulse 1.5s ease-in-out infinite' } : {}}>
+                              <i className="fa-solid fa-cloud-arrow-up text-2xl" />
+                            </div>
+                            <p className={`text-[rgba(240,240,240,0.3)] ${jb} text-[12px] mb-1`}>Drag and drop your file here</p>
+                            <p className={`text-[10px] ${jb} text-[rgba(240,240,240,0.15)]`}>or click to browse · Any file type</p>
                           </div>
                         )}
                       </label>
                     </div>
+                    {formErrors.assetFile && <p className={`text-[10px] ${jb} text-[#ef4444] mt-1.5`}><i className="fa-solid fa-exclamation-circle mr-1" />{formErrors.assetFile}</p>}
                   </div>
 
-                  {/* Preview Image Upload */}
+                  {/* Preview Image */}
                   <div>
-                    <label className="text-sm text-gray-500 font-mono uppercase tracking-wider block mb-3">
-                      Preview Image
-                    </label>
+                    <label className={label}>Preview Image</label>
                     <div
                       onDrop={handlePreviewImageDrop}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                      className="border-2 border-dashed border-gray-700 rounded-sm p-8 text-center hover:border-cyan-500 transition cursor-pointer"
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive('preview'); }}
+                      onDragLeave={() => setDragActive(null)}
+                      className={`border-2 border-dashed rounded-[3px] p-10 text-center transition-all cursor-pointer group ${dragActive === 'preview'
+                          ? 'border-[#00ffff] bg-[rgba(0,255,255,0.04)] shadow-[0_0_30px_rgba(0,255,255,0.1)]'
+                          : formErrors.previewImage
+                            ? 'border-[rgba(239,68,68,0.4)] bg-[rgba(239,68,68,0.02)]'
+                            : 'border-[rgba(255,255,255,0.08)] hover:border-[rgba(0,255,255,0.3)]'
+                        }`}
                     >
-                      <input
-                        type="file"
-                        id="preview-image"
-                        onChange={handlePreviewImageChange}
-                        accept="image/*"
-                        className="hidden"
-                      />
+                      <input type="file" id="preview-image" onChange={handlePreviewImageChange} accept="image/*" className="hidden" />
                       <label htmlFor="preview-image" className="cursor-pointer block">
                         {previewImageUrl ? (
                           <div className="space-y-2">
-                            <img
-                              src={previewImageUrl}
-                              alt="Preview"
-                              className="w-32 h-32 object-cover mx-auto rounded-sm border border-cyan-500/50"
-                            />
-                            <p className="text-cyan-400 font-mono text-sm">✓ {previewImage?.name}</p>
+                            <img src={previewImageUrl} alt="Preview" className="w-28 h-28 object-cover mx-auto rounded-[3px] border border-[rgba(0,255,255,0.3)]" />
+                            <p className={`text-[#00ffff] ${jb} text-[12px]`}>{previewImage?.name}</p>
                           </div>
                         ) : (
                           <div>
-                            <p className="text-gray-400 mb-2">Upload preview image</p>
-                            <p className="text-xs text-gray-500">JPG, PNG (max 5MB)</p>
+                            <div className={`w-16 h-16 mx-auto mb-4 rounded-[3px] border-2 border-dashed flex items-center justify-center transition-all ${dragActive === 'preview' ? 'border-[#00ffff] text-[#00ffff]' : 'border-[rgba(255,255,255,0.08)] text-[rgba(240,240,240,0.15)] group-hover:text-[rgba(0,255,255,0.4)] group-hover:border-[rgba(0,255,255,0.2)]'}`} style={dragActive === 'preview' ? { animation: 'glow-pulse 1.5s ease-in-out infinite' } : {}}>
+                              <i className="fa-solid fa-image text-2xl" />
+                            </div>
+                            <p className={`text-[rgba(240,240,240,0.3)] ${jb} text-[12px] mb-1`}>Upload preview image</p>
+                            <p className={`text-[10px] ${jb} text-[rgba(240,240,240,0.15)]`}>JPG, PNG (max 5MB)</p>
                           </div>
                         )}
                       </label>
                     </div>
+                    {formErrors.previewImage && <p className={`text-[10px] ${jb} text-[#ef4444] mt-1.5`}><i className="fa-solid fa-exclamation-circle mr-1" />{formErrors.previewImage}</p>}
                   </div>
 
                   {/* Title */}
                   <div>
-                    <label className="text-sm text-gray-500 font-mono uppercase tracking-wider block mb-2">
-                      Title
-                    </label>
-                    <input
-                      type="text"
-                      name="title"
-                      value={formData.title}
-                      onChange={handleFormChange}
-                      placeholder="Asset title"
-                      className="w-full bg-gray-950 border border-gray-800 rounded-sm px-4 py-2 text-white text-sm focus:border-cyan-500 focus:outline-none transition"
-                    />
+                    <label className={label}>Title</label>
+                    <input type="text" name="title" value={formData.title} onChange={handleFormChange} placeholder="Asset title" className={`${input} ${formErrors.title ? 'border-[rgba(239,68,68,0.4)]! focus:border-[rgba(239,68,68,0.6)]!' : ''}`} />
+                    {formErrors.title && <p className={`text-[10px] ${jb} text-[#ef4444] mt-1.5`}><i className="fa-solid fa-exclamation-circle mr-1" />{formErrors.title}</p>}
                   </div>
 
                   {/* Description */}
                   <div>
-                    <label className="text-sm text-gray-500 font-mono uppercase tracking-wider block mb-2">
-                      Description
-                    </label>
-                    <textarea
-                      name="description"
-                      value={formData.description}
-                      onChange={handleFormChange}
-                      placeholder="Describe your asset..."
-                      rows={4}
-                      className="w-full bg-gray-950 border border-gray-800 rounded-sm px-4 py-2 text-white text-sm focus:border-cyan-500 focus:outline-none transition"
-                    />
+                    <label className={label}>Description</label>
+                    <textarea name="description" value={formData.description} onChange={handleFormChange} placeholder="Describe your asset — what's included, use cases, tech specs..." rows={4} className={`${input} resize-none`} />
                   </div>
 
-                  {/* Category */}
-                  <div>
-                    <label className="text-sm text-gray-500 font-mono uppercase tracking-wider block mb-2">
-                      Category
-                    </label>
-                    <select
-                      name="category"
-                      value={formData.category}
-                      onChange={handleFormChange}
-                      className="w-full bg-gray-950 border border-gray-800 rounded-sm px-4 py-2 text-white text-sm focus:border-cyan-500 focus:outline-none transition"
-                    >
-                      <option>3D Models</option>
-                      <option>Code Snippets</option>
-                      <option>Notion Templates</option>
-                      <option>UI Kits</option>
-                    </select>
+                  {/* Row: Category + Price + License */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div>
+                      <label className={label}>Category</label>
+                      <select name="category" value={formData.category} onChange={handleFormChange} className={`${input} appearance-none cursor-pointer`}>
+                        <option>3D Models</option>
+                        <option>Code Snippets</option>
+                        <option>Notion Templates</option>
+                        <option>UI Kits</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={label}>Price (USD)</label>
+                      <input type="number" name="price" value={formData.price} onChange={handleFormChange} placeholder="0.00" step="0.01" min="0" className={`${input} ${formErrors.price ? 'border-[rgba(239,68,68,0.4)]!' : ''}`} />
+                      {formErrors.price && <p className={`text-[10px] ${jb} text-[#ef4444] mt-1.5`}><i className="fa-solid fa-exclamation-circle mr-1" />{formErrors.price}</p>}
+                    </div>
+                    <div>
+                      <label className={label}>License Type</label>
+                      <select name="license" value={formData.license} onChange={handleFormChange} className={`${input} appearance-none cursor-pointer`}>
+                        <option>Personal Use</option>
+                        <option>Commercial Use</option>
+                        <option>Resale Rights</option>
+                      </select>
+                    </div>
                   </div>
 
-                  {/* Price */}
-                  <div>
-                    <label className="text-sm text-gray-500 font-mono uppercase tracking-wider block mb-2">
-                      Price (USD)
-                    </label>
-                    <input
-                      type="number"
-                      name="price"
-                      value={formData.price}
-                      onChange={handleFormChange}
-                      placeholder="0.00"
-                      step="0.01"
-                      min="0"
-                      className="w-full bg-gray-950 border border-gray-800 rounded-sm px-4 py-2 text-white text-sm focus:border-cyan-500 focus:outline-none transition"
-                    />
-                  </div>
-
-                  {/* License */}
-                  <div>
-                    <label className="text-sm text-gray-500 font-mono uppercase tracking-wider block mb-2">
-                      License Type
-                    </label>
-                    <select
-                      name="license"
-                      value={formData.license}
-                      onChange={handleFormChange}
-                      className="w-full bg-gray-950 border border-gray-800 rounded-sm px-4 py-2 text-white text-sm focus:border-cyan-500 focus:outline-none transition"
-                    >
-                      <option>Personal Use</option>
-                      <option>Commercial Use</option>
-                      <option>Resale Rights</option>
-                    </select>
-                  </div>
-
-                  {/* Submit */}
-                  <div className="space-y-3 pt-4 border-t border-gray-800">
-                    <NeonButton
-                      variant="primary"
-                      size="lg"
-                      className="w-full"
-                      onClick={handlePublishAsset}
-                      disabled={submitting}
-                    >
-                      {submitting ? 'Publishing...' : 'Publish Asset'}
+                  {/* Actions */}
+                  <div className="flex flex-col sm:flex-row gap-3 pt-5 border-t border-[rgba(255,255,255,0.06)]">
+                    <NeonButton variant="primary" size="lg" className="flex-1" onClick={handlePublishAsset} disabled={submitting}>
+                      {submitting ? 'Processing...' : editingAssetId ? 'Update Asset' : 'Publish Asset'}
                     </NeonButton>
-                    <NeonButton
-                      variant="ghost"
-                      size="lg"
-                      className="w-full"
-                      onClick={handleSaveDraft}
-                      disabled={submitting}
-                    >
-                      {submitting ? 'Saving...' : 'Save as Draft'}
-                    </NeonButton>
+                    {!editingAssetId && (
+                      <NeonButton variant="ghost" size="lg" className="flex-1" onClick={handleSaveDraft} disabled={submitting}>
+                        {submitting ? 'Saving...' : 'Save as Draft'}
+                      </NeonButton>
+                    )}
+                    {editingAssetId && (
+                      <NeonButton variant="ghost" size="lg" className="flex-1" onClick={() => { resetForm(); setActiveTab('assets'); }}>
+                        Cancel
+                      </NeonButton>
+                    )}
                   </div>
                 </div>
               </div>
@@ -773,6 +591,8 @@ export default function SellerDashboardPage() {
           </div>
         </div>
       </main>
+
+      <Footer />
     </div>
   );
 }

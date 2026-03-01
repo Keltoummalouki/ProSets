@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { AssetCard } from '@/components/ui/asset-card';
 import { NeonButton } from '@/components/ui/neon-button';
+import { CardSkeleton } from '@/components/ui/skeletons';
+import { Navbar } from '@/components/ui/navbar';
+import { Footer } from '@/components/ui/footer';
 import { fetchAssets } from '@/lib/api';
 
 interface Asset {
@@ -48,7 +50,6 @@ export default function CataloguePage() {
     const loadAssets = async () => {
       try {
         const data = await fetchAssets({});
-        // Handle both array and object responses
         const assetsArray = Array.isArray(data) ? data : data?.assets || data?.data || [];
         setAssets(assetsArray);
       } catch (error) {
@@ -58,7 +59,6 @@ export default function CataloguePage() {
         setLoading(false);
       }
     };
-
     loadAssets();
   }, []);
 
@@ -67,36 +67,24 @@ export default function CataloguePage() {
     const matchesSearch =
       asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       asset.description.toLowerCase().includes(searchQuery.toLowerCase());
-
     let matchesPrice = true;
     if (selectedPrice) {
       const range = PRICE_RANGES.find((r) => r.label === selectedPrice);
-      if (range) {
-        matchesPrice = asset.price >= range.min && asset.price <= range.max;
-      }
+      if (range) matchesPrice = asset.price >= range.min && asset.price <= range.max;
     }
-
     return matchesCategory && matchesSearch && matchesPrice;
   });
 
-  // Sort assets
   const sortedAssets = [...filteredAssets].sort((a, b) => {
     switch (sortBy) {
-      case 'price-asc':
-        return a.price - b.price;
-      case 'price-desc':
-        return b.price - a.price;
-      case 'popular':
-        return Math.random() - 0.5; // Placeholder
-      case 'rated':
-        return Math.random() - 0.5; // Placeholder
-      case 'newest':
-      default:
-        return 0;
+      case 'price-asc': return a.price - b.price;
+      case 'price-desc': return b.price - a.price;
+      case 'popular': return Math.random() - 0.5;
+      case 'rated': return Math.random() - 0.5;
+      default: return 0;
     }
   });
 
-  // Pagination
   const totalPages = Math.ceil(sortedAssets.length / itemsPerPage);
   const startIdx = (currentPage - 1) * itemsPerPage;
   const paginatedAssets = sortedAssets.slice(startIdx, startIdx + itemsPerPage);
@@ -111,267 +99,140 @@ export default function CataloguePage() {
 
   const activeFiltersCount = [selectedCategory, selectedPrice].filter(Boolean).length;
 
-  return (
-    <div className="w-full h-screen bg-black text-white flex flex-col">
-      {/* Header */}
-      <header className="border-b border-gray-800 bg-black/50 backdrop-blur sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/" className="text-2xl font-syne font-bold tracking-wider">
-            NEX<span className="text-cyan-400">VAULT</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <NeonButton variant="ghost" size="sm">
-                Dashboard
-              </NeonButton>
-            </Link>
-            <Link href="/seller">
-              <NeonButton variant="ghost" size="sm">
-                Sell
-              </NeonButton>
-            </Link>
-            <Link href="/auth/login">
-              <NeonButton variant="secondary" size="sm">
-                Sign In
-              </NeonButton>
-            </Link>
-          </div>
-        </div>
-      </header>
+  /* ─── filter button helper ─── */
+  const filterBtn = (active: boolean) =>
+    `block w-full text-left px-3 py-2.5 rounded-[3px] transition-all text-[11px] font-[family-name:var(--font-jetbrains)] tracking-wide ${
+      active
+        ? 'bg-[rgba(0,255,255,0.08)] text-[#00ffff] border border-[rgba(0,255,255,0.4)]'
+        : 'text-[rgba(240,240,240,0.4)] hover:text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.04)]'
+    }`;
 
-      <main className="flex-1 w-full overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 py-12 h-full flex flex-col">
-          {/* Page Title */}
-          <div className="mb-12">
-            <h1 className="text-5xl font-syne font-bold tracking-wide mb-2">
-              Asset Catalogue
+  return (
+    <div className="w-full min-h-screen bg-[#050505] text-[#f0f0f0] flex flex-col">
+      <Navbar />
+
+      <main className="flex-1 w-full pt-[65px]">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 py-16">
+          {/* ── Page Header ── */}
+          <div className="mb-14 border-b border-[rgba(255,255,255,0.06)] pb-8">
+            <span className="text-[10px] font-[family-name:var(--font-jetbrains)] tracking-[4px] uppercase text-[rgba(240,240,240,0.25)] block mb-3">
+              Browse &amp; Discover
+            </span>
+            <h1 className="font-[family-name:var(--font-syne)] text-[clamp(40px,5vw,64px)] font-extrabold leading-[1] mb-3">
+              Asset <span className="text-[#00ffff]">Catalogue</span>
             </h1>
-            <p className="text-gray-400">
-              Discover premium digital assets from top creators worldwide
+            <p className="text-[13px] font-[family-name:var(--font-jetbrains)] text-[rgba(240,240,240,0.35)] max-w-lg">
+              Premium digital assets from top creators worldwide. Filter, preview, and buy securely.
             </p>
           </div>
 
-          {/* Search Bar */}
-          <div className="mb-8">
+          {/* ── Search ── */}
+          <div className="mb-10">
             <div className="relative">
+              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-[rgba(240,240,240,0.25)] text-xs" />
               <input
                 type="text"
                 placeholder="Search assets by name, creator, or description..."
                 value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full px-4 py-3 bg-gray-950 border border-gray-800 rounded-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:shadow-[0_0_20px_rgba(0,255,255,0.2)] transition-all"
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                className="w-full pl-10 pr-4 py-3.5 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-[3px] text-[#f0f0f0] placeholder-[rgba(240,240,240,0.2)] font-[family-name:var(--font-jetbrains)] text-[12px] focus:outline-none focus:border-[rgba(0,255,255,0.4)] focus:shadow-[0_0_20px_rgba(0,255,255,0.1)] transition-all"
               />
-              <span className="absolute right-4 top-3.5 text-gray-500">🔍</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 flex-1 overflow-hidden">
-            {/* Sidebar Filters - Desktop */}
-            <div className="hidden lg:block overflow-y-auto">
-              <div className="space-y-6 sticky top-0">
-                {/* Filter Header */}
+          <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-10">
+            {/* ── Sidebar ── */}
+            <aside className="hidden lg:block">
+              <div className="space-y-6 sticky top-[90px]">
+                {/* Header */}
                 <div className="flex items-center justify-between">
-                  <h2 className="font-syne font-bold text-lg">Filters</h2>
+                  <h2 className="font-[family-name:var(--font-syne)] font-bold text-base">Filters</h2>
                   {activeFiltersCount > 0 && (
-                    <button
-                      onClick={handleClearFilters}
-                      className="text-xs text-cyan-400 hover:text-cyan-300 transition"
-                    >
+                    <button onClick={handleClearFilters} className="text-[10px] font-[family-name:var(--font-jetbrains)] tracking-[1px] text-[#00ffff] hover:text-[#f0f0f0] transition-colors">
                       Clear ({activeFiltersCount})
                     </button>
                   )}
                 </div>
 
-                {/* Category Filter */}
-                <div className="bg-gray-900/50 border border-gray-800 rounded-sm p-4 space-y-3">
-                  <h3 className="font-syne font-bold text-sm uppercase tracking-wider text-gray-400">
-                    Category
-                  </h3>
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => {
-                        setSelectedCategory(null);
-                        setCurrentPage(1);
-                      }}
-                      className={`block w-full text-left px-3 py-2 rounded-sm transition-all text-sm ${
-                        selectedCategory === null
-                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500'
-                          : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
-                      }`}
-                    >
-                      All Categories
-                    </button>
-                    {ASSET_TYPES.map((category) => (
-                      <button
-                        key={category}
-                        onClick={() => {
-                          setSelectedCategory(category);
-                          setCurrentPage(1);
-                        }}
-                        className={`block w-full text-left px-3 py-2 rounded-sm transition-all text-sm ${
-                          selectedCategory === category
-                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
-                        }`}
-                      >
-                        {category}
-                      </button>
-                    ))}
-                  </div>
+                {/* Category */}
+                <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-4 space-y-2">
+                  <h3 className="font-[family-name:var(--font-syne)] font-bold text-[11px] uppercase tracking-[3px] text-[rgba(240,240,240,0.25)] mb-3">Category</h3>
+                  <button onClick={() => { setSelectedCategory(null); setCurrentPage(1); }} className={filterBtn(selectedCategory === null)}>All Categories</button>
+                  {ASSET_TYPES.map((cat) => (
+                    <button key={cat} onClick={() => { setSelectedCategory(cat); setCurrentPage(1); }} className={filterBtn(selectedCategory === cat)}>{cat}</button>
+                  ))}
                 </div>
 
-                {/* Price Filter */}
-                <div className="bg-gray-900/50 border border-gray-800 rounded-sm p-4 space-y-3">
-                  <h3 className="font-syne font-bold text-sm uppercase tracking-wider text-gray-400">
-                    Price Range
-                  </h3>
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => {
-                        setSelectedPrice(null);
-                        setCurrentPage(1);
-                      }}
-                      className={`block w-full text-left px-3 py-2 rounded-sm transition-all text-sm ${
-                        selectedPrice === null
-                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500'
-                          : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
-                      }`}
-                    >
-                      All Prices
-                    </button>
-                    {PRICE_RANGES.map((range) => (
-                      <button
-                        key={range.label}
-                        onClick={() => {
-                          setSelectedPrice(range.label);
-                          setCurrentPage(1);
-                        }}
-                        className={`block w-full text-left px-3 py-2 rounded-sm transition-all text-sm ${
-                          selectedPrice === range.label
-                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
-                        }`}
-                      >
-                        {range.label}
-                      </button>
-                    ))}
-                  </div>
+                {/* Price */}
+                <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-4 space-y-2">
+                  <h3 className="font-[family-name:var(--font-syne)] font-bold text-[11px] uppercase tracking-[3px] text-[rgba(240,240,240,0.25)] mb-3">Price Range</h3>
+                  <button onClick={() => { setSelectedPrice(null); setCurrentPage(1); }} className={filterBtn(selectedPrice === null)}>All Prices</button>
+                  {PRICE_RANGES.map((r) => (
+                    <button key={r.label} onClick={() => { setSelectedPrice(r.label); setCurrentPage(1); }} className={filterBtn(selectedPrice === r.label)}>{r.label}</button>
+                  ))}
                 </div>
 
                 {/* Seller CTA */}
-                <Link href="/seller">
-                  <NeonButton variant="secondary" size="md" className="w-full">
-                    Become a Seller
-                  </NeonButton>
-                </Link>
+                <NeonButton variant="secondary" size="md" className="w-full" onClick={() => window.location.href = '/seller'}>
+                  Become a Seller
+                </NeonButton>
               </div>
-            </div>
+            </aside>
 
-            {/* Main Content */}
-            <div className="lg:col-span-3 space-y-8 overflow-y-auto">
-              {/* Controls Bar */}
+            {/* ── Main Content ── */}
+            <div className="space-y-8">
+              {/* Controls */}
               <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <button
                     onClick={() => setShowMobileFilters(!showMobileFilters)}
-                    className="lg:hidden px-3 py-2 bg-gray-900 border border-gray-800 rounded-sm text-sm text-gray-300 hover:text-white transition"
+                    className="lg:hidden px-3 py-2 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-[3px] text-[11px] font-[family-name:var(--font-jetbrains)] text-[rgba(240,240,240,0.5)] hover:text-[#f0f0f0] transition"
                   >
-                    ⚙️ Filters
+                    <i className="fa-solid fa-sliders mr-2" />Filters
                   </button>
-                  <p className="text-sm text-gray-500 font-mono">
+                  <p className="text-[11px] font-[family-name:var(--font-jetbrains)] text-[rgba(240,240,240,0.25)]">
                     {sortedAssets.length} result{sortedAssets.length !== 1 ? 's' : ''}
                   </p>
                 </div>
 
-                {/* Sort Dropdown */}
                 <select
                   value={sortBy}
-                  onChange={(e) => {
-                    setSortBy(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="px-3 py-2 bg-gray-950 border border-gray-800 rounded-sm text-sm text-white focus:border-cyan-500 focus:outline-none transition"
+                  onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
+                  className="px-3 py-2 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-[3px] text-[11px] font-[family-name:var(--font-jetbrains)] text-[#f0f0f0] focus:border-[rgba(0,255,255,0.4)] focus:outline-none transition appearance-none cursor-pointer"
                 >
-                  {SORT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
+                  {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
 
               {/* Mobile Filters */}
               {showMobileFilters && (
-                <div className="lg:hidden space-y-4 bg-gray-900/50 border border-gray-800 rounded-sm p-4">
+                <div className="lg:hidden space-y-4 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-5">
                   <div>
-                    <h3 className="font-syne font-bold text-sm uppercase tracking-wider text-gray-400 mb-3">
-                      Category
-                    </h3>
+                    <h3 className="font-[family-name:var(--font-syne)] font-bold text-[11px] uppercase tracking-[3px] text-[rgba(240,240,240,0.25)] mb-3">Category</h3>
                     <div className="space-y-2">
                       {['All Categories', ...ASSET_TYPES].map((cat) => (
-                        <button
-                          key={cat}
-                          onClick={() => {
-                            setSelectedCategory(cat === 'All Categories' ? null : cat);
-                            setCurrentPage(1);
-                            setShowMobileFilters(false);
-                          }}
-                          className={`block w-full text-left px-3 py-2 rounded-sm transition-all text-sm ${
-                            (cat === 'All Categories' && selectedCategory === null) ||
-                            selectedCategory === cat
-                              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500'
-                              : 'text-gray-400 hover:text-white'
-                          }`}
-                        >
-                          {cat}
-                        </button>
+                        <button key={cat} onClick={() => { setSelectedCategory(cat === 'All Categories' ? null : cat); setCurrentPage(1); setShowMobileFilters(false); }} className={filterBtn((cat === 'All Categories' && !selectedCategory) || selectedCategory === cat)}>{cat}</button>
                       ))}
                     </div>
                   </div>
-
                   <div>
-                    <h3 className="font-syne font-bold text-sm uppercase tracking-wider text-gray-400 mb-3">
-                      Price
-                    </h3>
+                    <h3 className="font-[family-name:var(--font-syne)] font-bold text-[11px] uppercase tracking-[3px] text-[rgba(240,240,240,0.25)] mb-3">Price</h3>
                     <div className="space-y-2">
-                      {['All Prices', ...PRICE_RANGES.map((r) => r.label)].map((price) => (
-                        <button
-                          key={price}
-                          onClick={() => {
-                            setSelectedPrice(price === 'All Prices' ? null : price);
-                            setCurrentPage(1);
-                            setShowMobileFilters(false);
-                          }}
-                          className={`block w-full text-left px-3 py-2 rounded-sm transition-all text-sm ${
-                            (price === 'All Prices' && selectedPrice === null) ||
-                            selectedPrice === price
-                              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500'
-                              : 'text-gray-400 hover:text-white'
-                          }`}
-                        >
-                          {price}
-                        </button>
+                      {['All Prices', ...PRICE_RANGES.map((r) => r.label)].map((p) => (
+                        <button key={p} onClick={() => { setSelectedPrice(p === 'All Prices' ? null : p); setCurrentPage(1); setShowMobileFilters(false); }} className={filterBtn((p === 'All Prices' && !selectedPrice) || selectedPrice === p)}>{p}</button>
                       ))}
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Asset Grid */}
+              {/* ── Asset Grid ── */}
               {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {[...Array(12)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="bg-gray-900/50 border border-gray-800 rounded-sm h-80 animate-pulse"
-                    />
-                  ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {Array.from({ length: 12 }).map((_, i) => <CardSkeleton key={i} />)}
                 </div>
               ) : paginatedAssets.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                   {paginatedAssets.map((asset) => (
                     <AssetCard
                       key={asset.id}
@@ -386,56 +247,34 @@ export default function CataloguePage() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-16 bg-gray-900/50 border border-gray-800 rounded-sm">
-                  <p className="text-gray-400 text-lg mb-4">No assets found matching your filters.</p>
-                  <NeonButton
-                    variant="secondary"
-                    size="md"
-                    onClick={handleClearFilters}
-                  >
-                    Clear Filters
-                  </NeonButton>
+                <div className="text-center py-20 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px]">
+                  <i className="fa-solid fa-box-open text-3xl text-[rgba(240,240,240,0.15)] mb-4 block" />
+                  <p className="text-[rgba(240,240,240,0.4)] font-[family-name:var(--font-jetbrains)] text-sm mb-5">No assets found matching your filters.</p>
+                  <NeonButton variant="secondary" size="md" onClick={handleClearFilters}>Clear Filters</NeonButton>
                 </div>
               )}
 
-              {/* Pagination */}
+              {/* ── Pagination ── */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 pt-8">
+                <div className="flex items-center justify-center gap-2 pt-6">
                   <button
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
-                    className="px-3 py-2 bg-gray-900 border border-gray-800 rounded-sm text-sm text-gray-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    className="px-3 py-2 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-[3px] text-[11px] font-[family-name:var(--font-jetbrains)] text-[rgba(240,240,240,0.4)] hover:text-[#f0f0f0] disabled:opacity-30 disabled:cursor-not-allowed transition"
                   >
-                    ← Previous
+                    <i className="fa-solid fa-chevron-left mr-1" /> Prev
                   </button>
 
                   <div className="flex items-center gap-1">
-                    {[...Array(totalPages)].map((_, i) => {
+                    {Array.from({ length: totalPages }).map((_, i) => {
                       const page = i + 1;
                       const isNear = Math.abs(page - currentPage) <= 1;
                       const isFirst = page === 1;
                       const isLast = page === totalPages;
-
                       if (!isNear && !isFirst && !isLast) return null;
-
-                      if (!isNear && (isFirst || isLast)) {
-                        return (
-                          <span key={page} className="px-2 text-gray-500">
-                            ...
-                          </span>
-                        );
-                      }
-
+                      if (!isNear && (isFirst || isLast)) return <span key={page} className="px-2 text-[rgba(240,240,240,0.15)] text-xs">...</span>;
                       return (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          className={`px-3 py-2 rounded-sm transition-all text-sm ${
-                            currentPage === page
-                              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500'
-                              : 'bg-gray-900 border border-gray-800 text-gray-300 hover:text-white'
-                          }`}
-                        >
+                        <button key={page} onClick={() => setCurrentPage(page)} className={`w-8 h-8 rounded-[3px] text-[11px] font-[family-name:var(--font-jetbrains)] transition-all ${currentPage === page ? 'bg-[rgba(0,255,255,0.1)] text-[#00ffff] border border-[rgba(0,255,255,0.4)]' : 'bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.06)] text-[rgba(240,240,240,0.4)] hover:text-[#f0f0f0]'}`}>
                           {page}
                         </button>
                       );
@@ -445,30 +284,25 @@ export default function CataloguePage() {
                   <button
                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages}
-                    className="px-3 py-2 bg-gray-900 border border-gray-800 rounded-sm text-sm text-gray-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    className="px-3 py-2 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-[3px] text-[11px] font-[family-name:var(--font-jetbrains)] text-[rgba(240,240,240,0.4)] hover:text-[#f0f0f0] disabled:opacity-30 disabled:cursor-not-allowed transition"
                   >
-                    Next →
+                    Next <i className="fa-solid fa-chevron-right ml-1" />
                   </button>
                 </div>
               )}
 
-              {/* Results Info */}
-              <div className="text-center text-sm text-gray-500 font-mono pb-4">
-                Showing {startIdx + 1} to {Math.min(startIdx + itemsPerPage, sortedAssets.length)} of{' '}
-                {sortedAssets.length} assets
-              </div>
+              {/* Results info */}
+              {sortedAssets.length > 0 && (
+                <div className="text-center text-[10px] font-[family-name:var(--font-jetbrains)] tracking-[2px] text-[rgba(240,240,240,0.15)] pb-4">
+                  Showing {startIdx + 1}–{Math.min(startIdx + itemsPerPage, sortedAssets.length)} of {sortedAssets.length} assets
+                </div>
+              )}
             </div>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-800 py-12 px-4">
-        <div className="max-w-7xl mx-auto text-center text-gray-500 text-sm space-y-2">
-          <p>© 2026 NexVault. Premium digital assets for creators.</p>
-          <p>Secured by Auth0 • Powered by Stripe • Hosted on AWS</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

@@ -69,6 +69,19 @@ export class PaymentsService {
     return { sessionId: session.id, url: session.url };
   }
 
+  async getSessionDetails(sessionId: string) {
+    try {
+      const session = await this.stripe.checkout.sessions.retrieve(sessionId);
+      return {
+        id: session.id,
+        metadata: session.metadata,
+        payment_status: session.payment_status,
+      };
+    } catch (error) {
+      throw new BadRequestException('Failed to retrieve session details');
+    }
+  }
+
   async handleStripeWebhook(req: Request) {
     const sig = req.headers['stripe-signature'] as string;
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;

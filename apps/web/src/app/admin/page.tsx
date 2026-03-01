@@ -2,7 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Navbar } from '@/components/ui/navbar';
+import { Footer } from '@/components/ui/footer';
+import { Badge } from '@/components/ui/badge';
 import { NeonButton } from '@/components/ui/neon-button';
+
+/* ── style helpers ─────────────────────────────────────── */
+const syne = 'font-[family-name:var(--font-syne)]';
+const jb = 'font-[family-name:var(--font-jetbrains)]';
 
 interface AdminAsset {
   id: string;
@@ -30,82 +37,37 @@ export default function AdminPanelPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'assets' | 'users' | 'reports'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   useEffect(() => {
-    // TODO: Fetch admin data from API
-    // For now, mock data
     setAssets([
-      {
-        id: '1',
-        name: 'Modern 3D Character Model',
-        seller: 'Creator Studio',
-        category: '3D Models',
-        price: 49.99,
-        status: 'Active',
-        sales: 12,
-        createdDate: '2025-01-15',
-      },
-      {
-        id: '2',
-        name: 'React Component Library',
-        seller: 'Dev Tools Inc',
-        category: 'Code Snippets',
-        price: 29.99,
-        status: 'Active',
-        sales: 8,
-        createdDate: '2025-01-20',
-      },
-      {
-        id: '3',
-        name: 'Suspicious Asset',
-        seller: 'Unknown Seller',
-        category: 'UI Kits',
-        price: 99.99,
-        status: 'Flagged',
-        sales: 0,
-        createdDate: '2025-02-20',
-      },
+      { id: '1', name: 'Modern 3D Character Model', seller: 'Creator Studio', category: '3D Models', price: 49.99, status: 'Active', sales: 12, createdDate: '2025-01-15' },
+      { id: '2', name: 'React Component Library', seller: 'Dev Tools Inc', category: 'Code Snippets', price: 29.99, status: 'Active', sales: 8, createdDate: '2025-01-20' },
+      { id: '3', name: 'Suspicious Asset', seller: 'Unknown Seller', category: 'UI Kits', price: 99.99, status: 'Flagged', sales: 0, createdDate: '2025-02-20' },
+      { id: '4', name: 'Productivity Notion Pack', seller: 'Template Pro', category: 'Notion Templates', price: 19.99, status: 'Inactive', sales: 3, createdDate: '2025-02-05' },
     ]);
-
     setUsers([
-      {
-        id: '1',
-        email: 'buyer@example.com',
-        role: 'buyer',
-        joinDate: '2025-01-10',
-        purchases: 5,
-        status: 'Active',
-      },
-      {
-        id: '2',
-        email: 'seller@example.com',
-        role: 'seller',
-        joinDate: '2025-01-05',
-        purchases: 0,
-        status: 'Active',
-      },
-      {
-        id: '3',
-        email: 'spammer@example.com',
-        role: 'seller',
-        joinDate: '2025-02-15',
-        purchases: 0,
-        status: 'Suspended',
-      },
+      { id: '1', email: 'buyer@example.com', role: 'buyer', joinDate: '2025-01-10', purchases: 5, status: 'Active' },
+      { id: '2', email: 'seller@example.com', role: 'seller', joinDate: '2025-01-05', purchases: 0, status: 'Active' },
+      { id: '3', email: 'spammer@example.com', role: 'seller', joinDate: '2025-02-15', purchases: 0, status: 'Suspended' },
     ]);
-
     setLoading(false);
   }, []);
 
-  const filteredAssets = assets.filter(
-    (a) =>
-      a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.seller.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const toggleAssetStatus = (id: string) => {
+    setAssets(assets.map((a) => {
+      if (a.id !== id) return a;
+      return { ...a, status: a.status === 'Active' ? 'Inactive' : 'Active' };
+    }));
+  };
 
-  const filteredUsers = users.filter(
-    (u) =>
-      u.email.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredAssets = assets.filter((a) => {
+    const matchesSearch = a.name.toLowerCase().includes(searchQuery.toLowerCase()) || a.seller.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || a.status.toLowerCase() === statusFilter.toLowerCase();
+    return matchesSearch && matchesStatus;
+  });
+  const filteredUsers = users.filter((u) =>
+    u.email.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const totalAssets = assets.length;
@@ -113,320 +75,258 @@ export default function AdminPanelPage() {
   const flaggedAssets = assets.filter((a) => a.status === 'Flagged').length;
   const suspendedUsers = users.filter((u) => u.status === 'Suspended').length;
 
-  return (
-    <div className="w-full h-screen bg-black text-white flex flex-col">
-      {/* Header */}
-      <header className="border-b border-gray-800 bg-black/50 backdrop-blur sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/" className="text-2xl font-syne font-bold tracking-wider">
-            NEXVAULT ADMIN
-          </Link>
-          <Link
-            href="/catalogue"
-            className="text-sm text-gray-400 hover:text-cyan-400 transition"
-          >
-            ← Back to Catalogue
-          </Link>
-        </div>
-      </header>
+  /* helper: nav button */
+  const tabBtn = (active: boolean) =>
+    `w-full text-left px-4 py-2.5 rounded-[3px] text-[12px] transition ${jb} ${active
+      ? 'bg-[rgba(245,158,11,0.08)] text-[#F59E0B] border border-[rgba(245,158,11,0.3)]'
+      : 'text-[rgba(240,240,240,0.15)] hover:text-white hover:bg-[rgba(255,255,255,0.03)]'
+    }`;
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 py-12 w-full overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-gray-900/50 border border-gray-800 rounded-sm p-6 space-y-6 sticky top-24">
-              {/* Admin Info */}
+  /* helper: input */
+  const inputCls =
+    `w-full bg-[rgba(10,10,10,0.8)] border border-[rgba(255,255,255,0.06)] rounded-[3px] px-4 py-2.5 text-sm text-white placeholder:text-[rgba(240,240,240,0.15)] ${jb} focus:border-[rgba(245,158,11,0.4)] focus:outline-none transition`;
+
+  /* helper: stat card */
+  const StatCard = ({ label, value, sub, accent = false, icon }: { label: string; value: string | number; sub?: string; accent?: boolean; icon?: string }) => (
+    <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-6 space-y-2">
+      <div className="flex items-center gap-2">
+        {icon && <i className={`fa-solid ${icon} text-xs ${accent ? 'text-[#F59E0B]' : 'text-[rgba(240,240,240,0.2)]'}`} />}
+        <p className={`${jb} text-[10px] uppercase tracking-[.15em] text-[rgba(240,240,240,0.15)]`}>{label}</p>
+      </div>
+      <p className={`${syne} text-3xl font-bold ${accent ? 'text-[#F59E0B]' : 'text-white'}`}>{value}</p>
+      {sub && <p className={`${jb} text-[10px] text-[rgba(240,240,240,0.15)]`}>{sub}</p>}
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[#050505] text-white">
+      <Navbar />
+
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-28">
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-8">
+
+          {/* ═══════ SIDEBAR ═══════ */}
+          <aside>
+            <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-6 space-y-6 lg:sticky lg:top-24">
+              {/* admin avatar */}
               <div className="space-y-3">
-                <div className="w-16 h-16 rounded-full bg-red-500/20 border border-red-500/50 flex items-center justify-center">
-                  <span className="text-2xl">⚙️</span>
+                <div className="w-14 h-14 rounded-[3px] bg-[rgba(245,158,11,0.08)] border border-[rgba(245,158,11,0.25)] flex items-center justify-center">
+                  <i className="fa-solid fa-shield-halved text-sm text-[#F59E0B]" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 font-mono uppercase tracking-wider">
-                    Admin Panel
-                  </p>
-                  <p className="text-lg font-syne font-bold">Administrator</p>
-                  <p className="text-xs text-gray-500">admin@nexvault.com</p>
+                  <p className={`${jb} text-[10px] uppercase tracking-[.15em] text-[rgba(240,240,240,0.15)]`}>Admin Panel</p>
+                  <p className={`${syne} text-lg font-bold`}>Administrator</p>
+                  <p className={`${jb} text-[10px] text-[rgba(240,240,240,0.15)]`}>admin@prosets.io</p>
                 </div>
               </div>
 
-              {/* Navigation */}
-              <div className="space-y-2 border-t border-gray-800 pt-4">
-                <button
-                  onClick={() => setActiveTab('overview')}
-                  className={`w-full text-left px-3 py-2 rounded-sm text-sm transition ${
-                    activeTab === 'overview'
-                      ? 'bg-red-500/20 text-red-300 border border-red-500/50'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  Overview
-                </button>
-                <button
-                  onClick={() => setActiveTab('assets')}
-                  className={`w-full text-left px-3 py-2 rounded-sm text-sm transition ${
-                    activeTab === 'assets'
-                      ? 'bg-red-500/20 text-red-300 border border-red-500/50'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  Assets
-                </button>
-                <button
-                  onClick={() => setActiveTab('users')}
-                  className={`w-full text-left px-3 py-2 rounded-sm text-sm transition ${
-                    activeTab === 'users'
-                      ? 'bg-red-500/20 text-red-300 border border-red-500/50'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  Users
-                </button>
-                <button
-                  onClick={() => setActiveTab('reports')}
-                  className={`w-full text-left px-3 py-2 rounded-sm text-sm transition ${
-                    activeTab === 'reports'
-                      ? 'bg-red-500/20 text-red-300 border border-red-500/50'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  Reports
-                </button>
+              {/* nav */}
+              <div className="border-t border-[rgba(255,255,255,0.06)] pt-4 space-y-1.5">
+                {(['overview', 'assets', 'users', 'reports'] as const).map((t) => {
+                  const icons: Record<string, string> = {
+                    overview: 'fa-chart-pie',
+                    assets: 'fa-cube',
+                    users: 'fa-users',
+                    reports: 'fa-flag',
+                  };
+                  return (
+                    <button key={t} onClick={() => { setActiveTab(t); setSearchQuery(''); setStatusFilter('all'); }} className={tabBtn(activeTab === t)}>
+                      <i className={`fa-solid ${icons[t]} mr-2 text-xs`} />{t.charAt(0).toUpperCase() + t.slice(1)}
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Logout */}
               <NeonButton variant="ghost" size="sm" className="w-full">
-                Logout
+                <i className="fa-solid fa-right-from-bracket mr-2 text-xs" />Logout
               </NeonButton>
             </div>
-          </div>
+          </aside>
 
-          {/* Main Content */}
-          <div className="lg:col-span-3">
+          {/* ═══════ MAIN ═══════ */}
+          <section className="min-w-0">
+
+            {/* ── OVERVIEW ─────────────────── */}
             {activeTab === 'overview' && (
-              <div className="space-y-6">
+              <div className="space-y-6 animate-[fadeIn_.3s_ease]">
                 <div>
-                  <h2 className="text-3xl font-syne font-bold mb-2">Admin Overview</h2>
-                  <p className="text-gray-400">Platform statistics and moderation dashboard</p>
+                  <h2 className={`${syne} text-3xl font-bold`}>Admin Overview</h2>
+                  <p className={`${jb} text-xs text-[rgba(240,240,240,0.2)] mt-1`}>Platform statistics &amp; moderation</p>
                 </div>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gray-900/50 border border-gray-800 rounded-sm p-6 space-y-2">
-                    <p className="text-sm text-gray-500 font-mono uppercase tracking-wider">
-                      Total Assets
-                    </p>
-                    <p className="text-4xl font-syne font-bold text-cyan-400">{totalAssets}</p>
-                    <p className="text-xs text-gray-500">{flaggedAssets} flagged for review</p>
-                  </div>
-
-                  <div className="bg-gray-900/50 border border-gray-800 rounded-sm p-6 space-y-2">
-                    <p className="text-sm text-gray-500 font-mono uppercase tracking-wider">
-                      Total Users
-                    </p>
-                    <p className="text-4xl font-syne font-bold text-cyan-400">{totalUsers}</p>
-                    <p className="text-xs text-gray-500">{suspendedUsers} suspended</p>
-                  </div>
+                {/* stats */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <StatCard label="Total Assets" value={totalAssets} accent icon="fa-cube" />
+                  <StatCard label="Flagged" value={flaggedAssets} sub="needs review" icon="fa-flag" />
+                  <StatCard label="Total Users" value={totalUsers} accent icon="fa-users" />
+                  <StatCard label="Suspended" value={suspendedUsers} sub="accounts" icon="fa-user-slash" />
                 </div>
 
-                {/* Quick Actions */}
-                <div className="bg-gray-900/50 border border-gray-800 rounded-sm p-6 space-y-4">
-                  <h3 className="font-syne font-bold text-lg">Quick Actions</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <NeonButton variant="secondary" size="md" className="w-full">
-                      Review Flagged Assets
-                    </NeonButton>
-                    <NeonButton variant="secondary" size="md" className="w-full">
-                      Manage Suspended Users
-                    </NeonButton>
-                    <NeonButton variant="secondary" size="md" className="w-full">
-                      View Reports
-                    </NeonButton>
-                    <NeonButton variant="secondary" size="md" className="w-full">
-                      System Settings
-                    </NeonButton>
+                {/* quick actions */}
+                <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-6 space-y-4">
+                  <h3 className={`${syne} font-bold text-lg`}>Quick Actions</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {[
+                      { icon: 'fa-flag', label: 'Review Flagged Assets', tab: 'assets' as const },
+                      { icon: 'fa-user-slash', label: 'Manage Suspended Users', tab: 'users' as const },
+                      { icon: 'fa-chart-line', label: 'View Reports', tab: 'reports' as const },
+                      { icon: 'fa-gear', label: 'System Settings', tab: 'overview' as const },
+                    ].map((a) => (
+                      <button
+                        key={a.label}
+                        onClick={() => setActiveTab(a.tab)}
+                        className={`${jb} text-xs flex items-center gap-2 px-4 py-3 rounded-[3px] border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.04)] hover:border-[rgba(255,255,255,0.12)] transition text-[rgba(240,240,240,0.4)]`}
+                      >
+                        <i className={`fa-solid ${a.icon} text-[#F59E0B]`} />{a.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {/* Recent Activity */}
-                <div className="bg-gray-900/50 border border-gray-800 rounded-sm p-6 space-y-4">
-                  <h3 className="font-syne font-bold text-lg">Recent Activity</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between py-3 border-b border-gray-800">
-                      <div>
-                        <p className="font-syne font-bold text-white">Asset Flagged</p>
-                        <p className="text-xs text-gray-500">Suspicious Asset by Unknown Seller</p>
+                {/* recent activity */}
+                <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-6 space-y-4">
+                  <h3 className={`${syne} font-bold text-lg`}>Recent Activity</h3>
+                  {[
+                    { title: 'Asset Flagged', sub: 'Suspicious Asset by Unknown Seller', time: '2 hours ago', color: 'text-[#ef4444]', icon: 'fa-flag' },
+                    { title: 'User Suspended', sub: 'spammer@example.com', time: '1 day ago', color: 'text-[#ef4444]', icon: 'fa-user-slash' },
+                    { title: 'New Asset Published', sub: 'React Component Library', time: '3 days ago', color: 'text-[#22c55e]', icon: 'fa-check' },
+                  ].map((a, i) => (
+                    <div key={i} className={`flex items-center justify-between py-3 ${i < 2 ? 'border-b border-[rgba(255,255,255,0.04)]' : ''}`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-[3px] border flex items-center justify-center text-[10px] ${a.color} border-current/20 bg-current/5`}>
+                          <i className={`fa-solid ${a.icon}`} />
+                        </div>
+                        <div>
+                          <p className={`${syne} font-bold text-sm`}>{a.title}</p>
+                          <p className={`${jb} text-[10px] text-[rgba(240,240,240,0.15)]`}>{a.sub}</p>
+                        </div>
                       </div>
-                      <p className="text-xs text-red-400">2 hours ago</p>
+                      <p className={`${jb} text-[10px] ${a.color}`}>{a.time}</p>
                     </div>
-                    <div className="flex items-center justify-between py-3 border-b border-gray-800">
-                      <div>
-                        <p className="font-syne font-bold text-white">User Suspended</p>
-                        <p className="text-xs text-gray-500">spammer@example.com</p>
-                      </div>
-                      <p className="text-xs text-red-400">1 day ago</p>
-                    </div>
-                    <div className="flex items-center justify-between py-3">
-                      <div>
-                        <p className="font-syne font-bold text-white">New Asset Published</p>
-                        <p className="text-xs text-gray-500">React Component Library</p>
-                      </div>
-                      <p className="text-xs text-green-400">3 days ago</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             )}
 
+            {/* ── ASSETS ───────────────────── */}
             {activeTab === 'assets' && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-3xl font-syne font-bold mb-2">Asset Moderation</h2>
-                    <p className="text-gray-400">Review and manage all platform assets</p>
-                  </div>
-                </div>
-
-                {/* Search */}
+              <div className="space-y-6 animate-[fadeIn_.3s_ease]">
                 <div>
-                  <input
-                    type="text"
-                    placeholder="Search assets or sellers..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-gray-950 border border-gray-800 rounded-sm px-4 py-2 text-white text-sm focus:border-cyan-500 focus:outline-none transition"
-                  />
+                  <h2 className={`${syne} text-3xl font-bold`}>Asset Moderation</h2>
+                  <p className={`${jb} text-xs text-[rgba(240,240,240,0.2)] mt-1`}>Review and manage platform assets</p>
                 </div>
 
-                {/* Assets Table */}
+                {/* Search + Status Filter */}
+                <div className="flex gap-3">
+                  <div className="relative flex-1">
+                    <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[rgba(240,240,240,0.15)]" />
+                    <input
+                      type="text"
+                      placeholder="Search assets or sellers…"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className={`${inputCls} pl-9`}
+                    />
+                  </div>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className={`${inputCls} w-auto appearance-none cursor-pointer px-4`}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="flagged">Flagged</option>
+                  </select>
+                </div>
+
                 {loading ? (
-                  <div className="text-center py-12">
-                    <div className="w-12 h-12 border-2 border-red-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                  <div className="flex justify-center py-16">
+                    <div className="w-10 h-10 border-2 border-[#F59E0B] border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filteredAssets.map((asset) => (
-                      <div
-                        key={asset.id}
-                        className="bg-gray-900/50 border border-gray-800 rounded-sm p-4 flex items-center justify-between hover:border-gray-700 transition"
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span
-                              className={`text-xs font-mono font-bold px-2 py-1 border rounded-sm ${
-                                asset.status === 'Active'
-                                  ? 'bg-green-500/20 text-green-300 border-green-500/50'
-                                  : asset.status === 'Flagged'
-                                    ? 'bg-red-500/20 text-red-300 border-red-500/50'
-                                    : 'bg-gray-500/20 text-gray-300 border-gray-500/50'
-                              }`}
-                            >
-                              {asset.status}
-                            </span>
-                            <span className="text-xs font-mono font-bold px-2 py-1 border border-gray-600 rounded-sm text-gray-300">
-                              {asset.category}
-                            </span>
+                    {filteredAssets.map((a) => (
+                      <div key={a.id} className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:border-[rgba(255,255,255,0.12)] hover:bg-[rgba(255,255,255,0.03)]">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant={a.status === 'Active' ? 'green' : a.status === 'Flagged' ? 'red' : 'gray'}>{a.status}</Badge>
+                            <Badge variant="gray">{a.category}</Badge>
                           </div>
-                          <h3 className="font-syne font-bold text-white mb-1">{asset.name}</h3>
-                          <p className="text-xs text-gray-500">
-                            by {asset.seller} • {asset.sales} sales
-                          </p>
+                          <h3 className={`${syne} font-bold`}>{a.name}</h3>
+                          <p className={`${jb} text-[10px] text-[rgba(240,240,240,0.15)]`}>by {a.seller} · {a.sales} sales</p>
                         </div>
-
                         <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-lg font-syne font-bold text-cyan-400">
-                              ${asset.price.toFixed(2)}
-                            </p>
-                          </div>
-                          <div className="space-y-2">
-                            {asset.status === 'Flagged' && (
-                              <>
-                                <NeonButton variant="primary" size="sm">
-                                  Approve
-                                </NeonButton>
-                                <NeonButton variant="secondary" size="sm">
-                                  Delete
-                                </NeonButton>
-                              </>
+                          <p className={`${syne} text-lg font-bold text-[#F59E0B]`}>${a.price.toFixed(2)}</p>
+                          <div className="flex items-center gap-3">
+                            {/* Toggle switch */}
+                            {a.status !== 'Flagged' && (
+                              <button
+                                onClick={() => toggleAssetStatus(a.id)}
+                                className={`toggle-switch ${a.status === 'Active' ? 'active' : ''}`}
+                                title={a.status === 'Active' ? 'Deactivate' : 'Activate'}
+                              />
                             )}
-                            {asset.status === 'Active' && (
-                              <NeonButton variant="ghost" size="sm">
-                                Flag
-                              </NeonButton>
+                            {a.status === 'Flagged' && (
+                              <div className="flex gap-2">
+                                <NeonButton variant="primary" size="xs" onClick={() => setAssets(assets.map(x => x.id === a.id ? { ...x, status: 'Active' } : x))}>Approve</NeonButton>
+                                <NeonButton variant="danger" size="xs" onClick={() => setAssets(assets.filter(x => x.id !== a.id))}>Delete</NeonButton>
+                              </div>
                             )}
                           </div>
                         </div>
                       </div>
                     ))}
+                    {filteredAssets.length === 0 && (
+                      <div className="text-center py-12">
+                        <p className={`${jb} text-sm text-[rgba(240,240,240,0.2)]`}>No assets match your filters</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             )}
 
+            {/* ── USERS ────────────────────── */}
             {activeTab === 'users' && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-3xl font-syne font-bold mb-2">User Management</h2>
-                    <p className="text-gray-400">Monitor and manage platform users</p>
-                  </div>
+              <div className="space-y-6 animate-[fadeIn_.3s_ease]">
+                <div>
+                  <h2 className={`${syne} text-3xl font-bold`}>User Management</h2>
+                  <p className={`${jb} text-xs text-[rgba(240,240,240,0.2)] mt-1`}>Monitor and manage platform users</p>
                 </div>
 
-                {/* Search */}
-                <div>
+                <div className="relative">
+                  <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[rgba(240,240,240,0.15)]" />
                   <input
                     type="text"
-                    placeholder="Search users by email..."
+                    placeholder="Search users by email…"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-gray-950 border border-gray-800 rounded-sm px-4 py-2 text-white text-sm focus:border-cyan-500 focus:outline-none transition"
+                    className={`${inputCls} pl-9`}
                   />
                 </div>
 
-                {/* Users Table */}
                 {loading ? (
-                  <div className="text-center py-12">
-                    <div className="w-12 h-12 border-2 border-red-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                  <div className="flex justify-center py-16">
+                    <div className="w-10 h-10 border-2 border-[#F59E0B] border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filteredUsers.map((user) => (
-                      <div
-                        key={user.id}
-                        className="bg-gray-900/50 border border-gray-800 rounded-sm p-4 flex items-center justify-between hover:border-gray-700 transition"
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span
-                              className={`text-xs font-mono font-bold px-2 py-1 border rounded-sm ${
-                                user.status === 'Active'
-                                  ? 'bg-green-500/20 text-green-300 border-green-500/50'
-                                  : 'bg-red-500/20 text-red-300 border-red-500/50'
-                              }`}
-                            >
-                              {user.status}
-                            </span>
-                            <span className="text-xs font-mono font-bold px-2 py-1 border border-gray-600 rounded-sm text-gray-300">
-                              {user.role}
-                            </span>
+                    {filteredUsers.map((u) => (
+                      <div key={u.id} className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:border-[rgba(255,255,255,0.12)]">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant={u.status === 'Active' ? 'green' : 'red'}>{u.status}</Badge>
+                            <Badge variant="gray">{u.role}</Badge>
                           </div>
-                          <h3 className="font-syne font-bold text-white mb-1">{user.email}</h3>
-                          <p className="text-xs text-gray-500">
-                            Joined {new Date(user.joinDate).toLocaleDateString()} • {user.purchases} purchases
+                          <h3 className={`${syne} font-bold`}>{u.email}</h3>
+                          <p className={`${jb} text-[10px] text-[rgba(240,240,240,0.15)]`}>
+                            Joined {new Date(u.joinDate).toLocaleDateString()} · {u.purchases} purchases
                           </p>
                         </div>
-
-                        <div className="space-y-2">
-                          {user.status === 'Active' && (
-                            <NeonButton variant="secondary" size="sm">
-                              Suspend
-                            </NeonButton>
-                          )}
-                          {user.status === 'Suspended' && (
-                            <NeonButton variant="primary" size="sm">
-                              Restore
-                            </NeonButton>
-                          )}
+                        <div>
+                          {u.status === 'Active' && <NeonButton variant="danger" size="xs">Suspend</NeonButton>}
+                          {u.status === 'Suspended' && <NeonButton variant="primary" size="xs">Restore</NeonButton>}
                         </div>
                       </div>
                     ))}
@@ -435,61 +335,57 @@ export default function AdminPanelPage() {
               </div>
             )}
 
+            {/* ── REPORTS ──────────────────── */}
             {activeTab === 'reports' && (
-              <div className="space-y-6">
+              <div className="space-y-6 animate-[fadeIn_.3s_ease]">
                 <div>
-                  <h2 className="text-3xl font-syne font-bold mb-2">Reports & Analytics</h2>
-                  <p className="text-gray-400">Platform performance and user reports</p>
+                  <h2 className={`${syne} text-3xl font-bold`}>Reports &amp; Analytics</h2>
+                  <p className={`${jb} text-xs text-[rgba(240,240,240,0.2)] mt-1`}>Platform performance overview</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gray-900/50 border border-gray-800 rounded-sm p-6 space-y-4">
-                    <h3 className="font-syne font-bold text-lg">Platform Health</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-sm text-gray-400 mb-1">Active Users</p>
-                        <div className="w-full bg-gray-950 rounded-full h-2">
-                          <div className="bg-cyan-500 h-2 rounded-full" style={{ width: '85%' }} />
+                  {/* health */}
+                  <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-6 space-y-5">
+                    <h3 className={`${syne} font-bold`}>Platform Health</h3>
+                    {[
+                      { label: 'Active Users', pct: 85, color: '#00ffff' },
+                      { label: 'Asset Quality', pct: 92, color: '#22c55e' },
+                      { label: 'System Performance', pct: 78, color: '#F59E0B' },
+                    ].map((m) => (
+                      <div key={m.label} className="space-y-1.5">
+                        <div className="flex justify-between">
+                          <p className={`${jb} text-xs text-[rgba(240,240,240,0.4)]`}>{m.label}</p>
+                          <p className={`${jb} text-xs text-[rgba(240,240,240,0.15)]`}>{m.pct}%</p>
+                        </div>
+                        <div className="progress-bar">
+                          <div className="progress-bar-fill" style={{ width: `${m.pct}%`, background: m.color }} />
                         </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-400 mb-1">Asset Quality</p>
-                        <div className="w-full bg-gray-950 rounded-full h-2">
-                          <div className="bg-green-500 h-2 rounded-full" style={{ width: '92%' }} />
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-400 mb-1">System Performance</p>
-                        <div className="w-full bg-gray-950 rounded-full h-2">
-                          <div className="bg-amber-500 h-2 rounded-full" style={{ width: '78%' }} />
-                        </div>
-                      </div>
-                    </div>
+                    ))}
                   </div>
 
-                  <div className="bg-gray-900/50 border border-gray-800 rounded-sm p-6 space-y-4">
-                    <h3 className="font-syne font-bold text-lg">Reported Issues</h3>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between py-2 border-b border-gray-800">
-                        <span className="text-sm text-gray-300">Copyright Violations</span>
-                        <span className="text-red-400 font-bold">3</span>
+                  {/* issues */}
+                  <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[3px] p-6 space-y-4">
+                    <h3 className={`${syne} font-bold`}>Reported Issues</h3>
+                    {[
+                      { label: 'Copyright Violations', count: 3 },
+                      { label: 'Spam / Malware', count: 1 },
+                      { label: 'Inappropriate Content', count: 2 },
+                    ].map((r, i, arr) => (
+                      <div key={r.label} className={`flex items-center justify-between py-2 ${i < arr.length - 1 ? 'border-b border-[rgba(255,255,255,0.04)]' : ''}`}>
+                        <span className={`${jb} text-xs text-[rgba(240,240,240,0.4)]`}>{r.label}</span>
+                        <span className={`${jb} text-xs font-bold text-[#ef4444]`}>{r.count}</span>
                       </div>
-                      <div className="flex items-center justify-between py-2 border-b border-gray-800">
-                        <span className="text-sm text-gray-300">Spam/Malware</span>
-                        <span className="text-red-400 font-bold">1</span>
-                      </div>
-                      <div className="flex items-center justify-between py-2">
-                        <span className="text-sm text-gray-300">Inappropriate Content</span>
-                        <span className="text-red-400 font-bold">2</span>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               </div>
             )}
-          </div>
+          </section>
         </div>
       </main>
+
+      <Footer />
     </div>
   );
 }

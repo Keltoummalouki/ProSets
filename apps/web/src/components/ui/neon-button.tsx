@@ -1,38 +1,50 @@
 import React from 'react';
 
 interface NeonButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
+  glow?: boolean;
   children: React.ReactNode;
 }
 
 export function NeonButton({
   variant = 'primary',
   size = 'md',
+  glow = false,
   className = '',
   children,
   ...props
 }: NeonButtonProps) {
-  const baseStyles =
-    'font-syne font-bold tracking-wider transition-all duration-300 border rounded-sm disabled:opacity-50 disabled:cursor-not-allowed';
+  const base =
+    'font-[family-name:var(--font-jetbrains)] font-medium tracking-widest uppercase transition-all duration-300 border rounded-[3px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer inline-flex items-center justify-center gap-2 relative overflow-hidden';
 
-  const variants = {
+  const variants: Record<string, string> = {
     primary:
-      'bg-blue-500 text-black border-blue-400 hover:shadow-[0_0_20px_rgba(0,255,255,0.5)] hover:border-cyan-300',
+      'bg-[#00ffff] text-[#050505] border-[#00ffff] hover:shadow-[0_0_25px_rgba(0,255,255,0.5),inset_0_0_25px_rgba(0,255,255,0.1)] hover:-translate-y-[1px] active:translate-y-0',
     secondary:
-      'bg-transparent text-white border-amber-500 hover:shadow-[0_0_15px_rgba(245,158,11,0.4)] hover:bg-amber-500/10',
-    ghost: 'bg-transparent text-gray-300 border-gray-700 hover:text-white hover:border-gray-500',
+      'bg-transparent text-[#00ffff] border-[rgba(0,255,255,0.4)] hover:bg-[rgba(0,255,255,0.08)] hover:border-[#00ffff] hover:shadow-[0_0_20px_rgba(0,255,255,0.3)] hover:-translate-y-[1px]',
+    ghost:
+      'bg-transparent text-[rgba(240,240,240,0.55)] border-[rgba(255,255,255,0.08)] hover:text-[#f0f0f0] hover:border-[rgba(255,255,255,0.2)] hover:bg-[rgba(255,255,255,0.03)]',
+    danger:
+      'bg-transparent text-[#ef4444] border-[rgba(239,68,68,0.4)] hover:bg-[rgba(239,68,68,0.1)] hover:border-[#ef4444] hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]',
   };
 
-  const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-6 py-2.5 text-base',
-    lg: 'px-8 py-3.5 text-lg',
+  const sizes: Record<string, string> = {
+    xs: 'px-2.5 py-1 text-[9px]',
+    sm: 'px-3.5 py-1.5 text-[10px]',
+    md: 'px-6 py-2.5 text-[11px]',
+    lg: 'px-8 py-3.5 text-xs',
   };
+
+  const glowClass = glow
+    ? variant === 'primary'
+      ? 'shadow-[0_0_30px_rgba(0,255,255,0.5)]'
+      : ''
+    : '';
 
   return (
     <button
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`${base} ${variants[variant]} ${sizes[size]} ${glowClass} ${className}`}
       {...props}
     >
       {children}

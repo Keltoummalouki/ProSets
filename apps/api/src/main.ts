@@ -10,7 +10,9 @@ async function bootstrap() {
 
   // Middleware to handle raw body for Stripe webhook
   app.use('/payments/webhook', raw({ type: 'application/json' }));
-  app.use(json());
+  
+  // Increase body size limit for file uploads (50MB)
+  app.use(json({ limit: '50mb' }));
 
   // Enable CORS for frontend communication
   app.enableCors({
